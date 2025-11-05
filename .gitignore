@@ -1,1 +1,10 @@
 data
+ai_plan/
+
+*.pkl
+.cache.*
+*.sqlite
+__pycache__/
+*.log
+*.pptx
+*.pdf
