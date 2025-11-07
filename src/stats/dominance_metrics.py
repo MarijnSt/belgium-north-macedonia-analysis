@@ -45,6 +45,12 @@ def calculate_dominance_metrics(events_df: pd.DataFrame, team1_name: str, team2_
         metrics['Metric'].append('Total Shots')
         metrics[team1_name].append(shot_metrics['team1_total_shots'])
         metrics[team2_name].append(shot_metrics['team2_total_shots'])
+        metrics['Metric'].append('On target Shots')
+        metrics[team1_name].append(shot_metrics['team1_on_target_shots'])
+        metrics[team2_name].append(shot_metrics['team2_on_target_shots'])
+        metrics['Metric'].append('Blocked Shots')
+        metrics[team1_name].append(shot_metrics['team1_blocked_shots'])
+        metrics[team2_name].append(shot_metrics['team2_blocked_shots'])
 
         return pd.DataFrame(metrics)
     
@@ -116,7 +122,8 @@ def calculate_shot_metrics(events_df: pd.DataFrame, team1_name: str, team2_name:
         The keys are:
         - 'xg': float
         - 'total_shots': int
-        # - 'shots_on_target': int
+        - 'shots_on_target': int
+        - 'blocked_shots': int
         # - 'goals': int
         # - 'shots_inside_box': int
         # - 'shots_outside_box': int
@@ -145,13 +152,27 @@ def calculate_shot_metrics(events_df: pd.DataFrame, team1_name: str, team2_name:
         team1_total_shots = len(team1_shot_events)
         team2_total_shots = len(team2_shot_events)
 
+        # Count on target shots
+        team1_on_target_shots = len(team1_shot_events[team1_shot_events['shotTypeName'] == 'ON_TARGET'])
+        team2_on_target_shots = len(team2_shot_events[team2_shot_events['shotTypeName'] == 'ON_TARGET'])
+
+        # Count blocked shots
+        team1_blocked_shots = len(team1_shot_events[team1_shot_events['shotTypeName'] == 'BLOCKED'])
+        team2_blocked_shots = len(team2_shot_events[team2_shot_events['shotTypeName'] == 'BLOCKED'])
+
         logger.debug(f"Total shots: {team1_name}: {team1_total_shots}, {team2_name}: {team2_total_shots}")
+        logger.debug(f"On target shots: {team1_name}: {team1_on_target_shots}, {team2_name}: {team2_on_target_shots}")
+        logger.debug(f"Blocked shots: {team1_name}: {team1_blocked_shots}, {team2_name}: {team2_blocked_shots}")
 
         return {
             "team1_xg": team1_xg,
             "team2_xg": team2_xg,
             "team1_total_shots": team1_total_shots,
             "team2_total_shots": team2_total_shots,
+            "team1_on_target_shots": team1_on_target_shots,
+            "team2_on_target_shots": team2_on_target_shots,
+            "team1_blocked_shots": team1_blocked_shots,
+            "team2_blocked_shots": team2_blocked_shots,
         }
 
     except Exception as e:
