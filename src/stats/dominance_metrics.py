@@ -33,9 +33,18 @@ def calculate_dominance_metrics(events_df: pd.DataFrame, team1_name: str, team2_
 
         # Possession
         team1_possession_percentage, team2_possession_percentage = calculate_possession(events_df, team1_name, team2_name)
-        metrics['Metric'].append('Possession')
+        metrics['Metric'].append('Possession %')
         metrics[team1_name].append(round(team1_possession_percentage, 2))
         metrics[team2_name].append(round(team2_possession_percentage, 2))
+
+        # Shot metrics
+        shot_metrics = calculate_shot_metrics(events_df, team1_name, team2_name)
+        metrics['Metric'].append('xG')
+        metrics[team1_name].append(round(shot_metrics['team1_xg'], 2))
+        metrics[team2_name].append(round(shot_metrics['team2_xg'], 2))
+        metrics['Metric'].append('Total Shots')
+        metrics[team1_name].append(shot_metrics['team1_total_shots'])
+        metrics[team2_name].append(shot_metrics['team2_total_shots'])
 
         return pd.DataFrame(metrics)
     
@@ -60,7 +69,7 @@ def calculate_possession(events_df: pd.DataFrame, team1_name: str, team2_name: s
     Returns:
     --------
     float
-        The possession percentage for the team.
+        The possession percentages for the teams.
     """
     try:
         # Only look at possession events
@@ -78,11 +87,73 @@ def calculate_possession(events_df: pd.DataFrame, team1_name: str, team2_name: s
         # Calculate possession percentage
         team1_possession_percentage = (team1_possession_duration / total_possession_duration) * 100
         team2_possession_percentage = (team2_possession_duration / total_possession_duration) * 100
-        logger.info(f"Possession percentage for {team1_name}: {team1_possession_percentage:.2f}%")
-        logger.info(f"Possession percentage for {team2_name}: {team2_possession_percentage:.2f}%")
+        logger.debug(f"Possession percentage for {team1_name}: {team1_possession_percentage:.2f}%")
+        logger.debug(f"Possession percentage for {team2_name}: {team2_possession_percentage:.2f}%")
 
         return team1_possession_percentage, team2_possession_percentage
 
     except Exception as e:
         logger.error(f"Error calculating possession: {e}")
+        raise e
+
+def calculate_shot_metrics(events_df: pd.DataFrame, team1_name: str, team2_name: str) -> float:
+    """
+    Calculate shot metrics for a team.
+
+    Parameters:
+    -----------
+    events_df: pd.DataFrame
+        The events dataframe of the game.
+    team1_name: str
+        The name of the first team.
+    team2_name: str
+        The name of the second team.
+
+    Returns:
+    --------
+    shot_metrics: dict
+        A dictionary with the shot metrics for the teams.
+        The keys are:
+        - 'xg': float
+        - 'total_shots': int
+        # - 'shots_on_target': int
+        # - 'goals': int
+        # - 'shots_inside_box': int
+        # - 'shots_outside_box': int
+        # - 'shot_accuracy': float
+        # - 'conversion_rate': float
+    """
+    try:
+        # Filter for shot events
+        shot_events = events_df[events_df['baseTypeName'] == 'SHOT'].copy()
+
+        # Seperate xG from metrics column for each shot
+        shot_events['xG'] = shot_events['metrics'].apply(lambda x: x['xG'] if x is not None else 0)
+        
+        # Filter for team shots
+        team1_shot_events = shot_events[shot_events['teamName'] == team1_name]
+        team2_shot_events = shot_events[shot_events['teamName'] == team2_name]
+
+        # Calculate total xG for each team
+        team1_xg = team1_shot_events['xG'].sum()
+        team2_xg = team2_shot_events['xG'].sum()
+        
+        logger.debug(f"xG for {team1_name}: {team1_xg:.2f}")
+        logger.debug(f"xG for {team2_name}: {team2_xg:.2f}")
+        
+        # Count team shots
+        team1_total_shots = len(team1_shot_events)
+        team2_total_shots = len(team2_shot_events)
+
+        logger.debug(f"Total shots: {team1_name}: {team1_total_shots}, {team2_name}: {team2_total_shots}")
+
+        return {
+            "team1_xg": team1_xg,
+            "team2_xg": team2_xg,
+            "team1_total_shots": team1_total_shots,
+            "team2_total_shots": team2_total_shots,
+        }
+
+    except Exception as e:
+        logger.error(f"Error calculating xG: {e}")
         raise e
