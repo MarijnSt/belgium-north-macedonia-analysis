@@ -55,6 +55,20 @@ def calculate_dominance_metrics(events_df: pd.DataFrame, team1_name: str, team2_
         metrics[team1_name].append(box_touches['team1_box_touches'])
         metrics[team2_name].append(box_touches['team2_box_touches'])
 
+        # Progressive passes
+        prog_passes = calculate_progressive_passes(events_df, team1_name, team2_name)
+        metrics['Metric'].append('Progressive Passes')
+        metrics[team1_name].append(prog_passes['team1_prog_passes'])
+        metrics[team2_name].append(prog_passes['team2_prog_passes'])
+
+        metrics['Metric'].append('Progressive Passes Outside Final Third')
+        metrics[team1_name].append(prog_passes['team1_prog_passes_outside_final_third'])
+        metrics[team2_name].append(prog_passes['team2_prog_passes_outside_final_third'])
+
+        metrics['Metric'].append('Progressive Passes In Final Third')
+        metrics[team1_name].append(prog_passes['team1_prog_passes_in_final_third'])
+        metrics[team2_name].append(prog_passes['team2_prog_passes_in_final_third'])
+
         # Shot metrics
         shot_metrics = calculate_shot_metrics(events_df, team1_name, team2_name)
         metrics['Metric'].append('xG')
@@ -258,6 +272,66 @@ def calculate_box_touches(events_df: pd.DataFrame, team1_name: str, team2_name: 
     
     except Exception as e:
         logger.error(f"Error calculating box touches: {e}")
+        raise e
+
+def calculate_progressive_passes(events_df: pd.DataFrame, team1_name: str, team2_name: str) -> float:
+    """
+    Calculate progressive passes for a team.
+
+    Parameters:
+    -----------
+    events_df: pd.DataFrame
+        The events dataframe of the game.
+    team1_name: str
+        The name of the first team.
+    team2_name: str
+        The name of the second team.
+
+    Returns:
+    --------
+    float
+        The progressive passes for the teams.
+    """
+    try:
+        # Filter out passes
+        passes = events_df[events_df["baseTypeName"] == "PASS"].copy()
+        passes["progress"] = passes["endPosXM"] - passes["startPosXM"]
+
+        # Filter for progressive passes outside the final third
+        prog_passes_outside_final_third = passes[
+            (passes["endPosXM"] < 17.5) &
+            (passes["progress"] >= 10)
+        ]
+
+        # Filter for progressive passes inside the final third
+        prog_passes_in_final_third = passes[
+            (passes["endPosXM"] < 17.5) &
+            (passes["progress"] >= 5)
+        ]
+
+        # Count progressive passes
+        team1_prog_passes_outside_final_third = len(prog_passes_outside_final_third[prog_passes_outside_final_third["teamName"] == team1_name])
+        team2_prog_passes_outside_final_third = len(prog_passes_outside_final_third[prog_passes_outside_final_third["teamName"] == team2_name])
+        team1_prog_passes_in_final_third = len(prog_passes_in_final_third[prog_passes_in_final_third["teamName"] == team1_name])
+        team2_prog_passes_in_final_third = len(prog_passes_in_final_third[prog_passes_in_final_third["teamName"] == team2_name])
+
+        team1_prog_passes = team1_prog_passes_outside_final_third + team1_prog_passes_in_final_third
+        team2_prog_passes = team2_prog_passes_outside_final_third + team2_prog_passes_in_final_third
+
+        logger.debug(f"Progressive passes for {team1_name}: {team1_prog_passes}")
+        logger.debug(f"Progressive passes for {team2_name}: {team2_prog_passes}")
+
+        return {
+            "team1_prog_passes": team1_prog_passes,
+            "team2_prog_passes": team2_prog_passes,
+            "team1_prog_passes_outside_final_third": team1_prog_passes_outside_final_third,
+            "team2_prog_passes_outside_final_third": team2_prog_passes_outside_final_third,
+            "team1_prog_passes_in_final_third": team1_prog_passes_in_final_third,
+            "team2_prog_passes_in_final_third": team2_prog_passes_in_final_third,
+        }
+    
+    except Exception as e:
+        logger.error(f"Error calculating progressive passes: {e}")
         raise e
 
 def calculate_shot_metrics(events_df: pd.DataFrame, team1_name: str, team2_name: str) -> float:
