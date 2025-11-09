@@ -37,17 +37,26 @@ def calculate_dominance_metrics(events_df: pd.DataFrame, team1_name: str, team2_
         metrics[team1_name].append(round(team1_possession_percentage, 2))
         metrics[team2_name].append(round(team2_possession_percentage, 2))
 
+        # Field tilt
+        field_tilt = calculate_field_tilt(events_df, team1_name, team2_name)
+        metrics['Metric'].append('Field Tilt')
+        metrics[team1_name].append(round(field_tilt['team1_field_tilt'], 2))
+        metrics[team2_name].append(round(field_tilt['team2_field_tilt'], 2))
+
         # Shot metrics
         shot_metrics = calculate_shot_metrics(events_df, team1_name, team2_name)
         metrics['Metric'].append('xG')
         metrics[team1_name].append(round(shot_metrics['team1_xg'], 2))
         metrics[team2_name].append(round(shot_metrics['team2_xg'], 2))
+
         metrics['Metric'].append('Total Shots')
         metrics[team1_name].append(shot_metrics['team1_total_shots'])
         metrics[team2_name].append(shot_metrics['team2_total_shots'])
+
         metrics['Metric'].append('On target Shots')
         metrics[team1_name].append(shot_metrics['team1_on_target_shots'])
         metrics[team2_name].append(shot_metrics['team2_on_target_shots'])
+
         metrics['Metric'].append('Blocked Shots')
         metrics[team1_name].append(shot_metrics['team1_blocked_shots'])
         metrics[team2_name].append(shot_metrics['team2_blocked_shots'])
@@ -100,6 +109,54 @@ def calculate_possession(events_df: pd.DataFrame, team1_name: str, team2_name: s
 
     except Exception as e:
         logger.error(f"Error calculating possession: {e}")
+        raise e
+
+def calculate_field_tilt(events_df: pd.DataFrame, team1_name: str, team2_name: str) -> float:
+    """
+    Calculate field tilt for a team.
+
+    Parameters:
+    -----------
+    events_df: pd.DataFrame
+        The events dataframe of the game.
+    team1_name: str
+        The name of the first team.
+    team2_name: str
+        The name of the second team.
+
+    Returns:
+    --------
+    float
+        The field tilt for the teams.
+    """
+    try:
+        # Get passes in final third
+        passes_in_final_third = events_df[
+            (events_df["baseTypeName"] == "PASS") &
+            (events_df["endPosXM"] >= 17.5)
+        ]
+
+        logger.info(f"Passes in final third: {len(passes_in_final_third)}")
+
+        # Count passes
+        total_passes = len(passes_in_final_third)
+        team1_passes = len(passes_in_final_third[passes_in_final_third["teamName"] == team1_name])
+        team2_passes = len(passes_in_final_third[passes_in_final_third["teamName"] == team2_name])
+
+        # Calculate field tilt
+        team1_field_tilt = (team1_passes / total_passes) * 100
+        team2_field_tilt = (team2_passes / total_passes) * 100
+
+        logger.info(f"Field tilt for {team1_name}: {team1_field_tilt:.2f}%")
+        logger.info(f"Field tilt for {team2_name}: {team2_field_tilt:.2f}%")
+
+        return {
+            "team1_field_tilt": team1_field_tilt,
+            "team2_field_tilt": team2_field_tilt,
+        }
+
+    except Exception as e:
+        logger.error(f"Error calculating field tilt: {e}")
         raise e
 
 def calculate_shot_metrics(events_df: pd.DataFrame, team1_name: str, team2_name: str) -> float:
