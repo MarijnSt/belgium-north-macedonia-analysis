@@ -87,6 +87,12 @@ def calculate_dominance_metrics(events_df: pd.DataFrame, team1_name: str, team2_
         metrics[team1_name].append(shot_metrics['team1_blocked_shots'])
         metrics[team2_name].append(shot_metrics['team2_blocked_shots'])
 
+        # PPDA
+        ppda = calculate_ppda(events_df, team1_name, team2_name)
+        metrics['Metric'].append('PPDA')
+        metrics[team1_name].append(round(ppda['team1_ppda'], 2))
+        metrics[team2_name].append(round(ppda['team2_ppda'], 2))
+
         return pd.DataFrame(metrics)
     
     except Exception as e:
@@ -411,3 +417,73 @@ def calculate_shot_metrics(events_df: pd.DataFrame, team1_name: str, team2_name:
         logger.error(f"Error calculating xG: {e}")
         raise e
 
+def calculate_ppda(events_df: pd.DataFrame, team1_name: str, team2_name: str) -> float:
+    """
+    Calculate PPDA (Passes Allowed Per Defensive Action) for a team. Cutoff is 60% of the field.
+
+    Parameters:
+    -----------
+    events_df: pd.DataFrame
+        The events dataframe of the game.
+    team1_name: str
+        The name of the first team.
+    team2_name: str
+        The name of the second team.
+
+    Returns:
+    --------
+    float
+        The PPDA for the teams.
+    """
+    try:
+        # Filter for succesful passes in buildup and progression thirds
+        passes_df = events_df[
+            (events_df["baseTypeName"] == "PASS") &
+            (events_df["resultName"] == "SUCCESSFUL") &
+            (events_df["startPosXM"] < 10.5)
+        ]
+
+        clearances_df = events_df[
+            (events_df["baseTypeName"] == "CLEARANCE") &
+            (events_df["startPosXM"] < 10.5)
+        ]
+
+        passes_team1 = len(passes_df[passes_df["teamName"] == team1_name])
+        passes_team2 = len(passes_df[passes_df["teamName"] == team2_name])
+        passes_team1 += len(clearances_df[clearances_df["teamName"] == team1_name])
+        passes_team2 += len(clearances_df[clearances_df["teamName"] == team2_name])
+
+        logger.info(f"Passes: {team1_name} - {passes_team1}, {team2_name} - {passes_team2}")
+
+        # Filter for defensive actions in opposition buildup and progression thirds
+        # Tackle: 400 (geslaagd)
+        # Challenge: 401 (niet geslaagd)
+        # Interception: 500 (verschil met recovery?)
+        # Recovery: 501 (geslaagd)
+        # Foul: 700
+        # Blocked pass: 1302
+        defensive_actions_df = events_df[
+            (events_df["subTypeId"].isin([400, 401, 500, 501, 700, 1302])) &
+            (events_df["startPosXM"] >= -10.5)
+        ]
+
+        defensive_actions_team1 = len(defensive_actions_df[defensive_actions_df["teamName"] == team1_name])
+        defensive_actions_team2 = len(defensive_actions_df[defensive_actions_df["teamName"] == team2_name])
+        
+        logger.info(f"Defensive actions: {team1_name} - {defensive_actions_team1}, {team2_name} - {defensive_actions_team2}")
+
+        # Calculate PPDA
+        ppda_team1 = passes_team2 / defensive_actions_team1
+        ppda_team2 = passes_team1 / defensive_actions_team2
+
+        logger.info(f"PPDA: {team1_name} - {ppda_team1}, {team2_name} - {ppda_team2}")
+
+        return {
+            "team1_ppda": ppda_team1,
+            "team2_ppda": ppda_team2,
+        }
+
+
+    except Exception as e:
+        logger.error(f"Error calculating PPDA: {e}")
+        raise e
