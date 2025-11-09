@@ -1,10 +1,12 @@
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from matplotlib.gridspec import GridSpec
+from matplotlib.patches import Rectangle, Ellipse
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+import matplotlib.image as mpimg
 import numpy as np
 import pandas as pd
 from mplsoccer import Pitch
 from mplsoccer import VerticalPitch
+from pathlib import Path
 import logging
 
 from config import styling
@@ -61,7 +63,7 @@ def create_game_summary(events_df, team1_name, team1_color, team2_name, team2_co
     team1_shot_map_ax = fig.add_subplot(gs[4:7, 0])
     team2_passing_network_ax = fig.add_subplot(gs[1:4, 2])
     team2_shot_map_ax = fig.add_subplot(gs[4:7, 2])
-    game_score_ax = fig.add_subplot(gs[1, 1])
+    game_info_ax = fig.add_subplot(gs[1, 1])
     territorial_heatmap_ax = fig.add_subplot(gs[2:4, 1])
     stats_comparison_ax = fig.add_subplot(gs[4:7, 1])
 
@@ -102,15 +104,6 @@ def create_game_summary(events_df, team1_name, team1_color, team2_name, team2_co
         va="center"
     )
 
-    game_score_ax.text(
-        0.5, 0.5, 
-        "Game Score", 
-        fontsize=styling.typo["sizes"]["p"], 
-        color=styling.colors["primary"], 
-        ha="center", 
-        va="center"
-    )
-
     territorial_heatmap_ax.text(
         0.5, 0.5, 
         "Territorial Heatmap", 
@@ -129,11 +122,12 @@ def create_game_summary(events_df, team1_name, team1_color, team2_name, team2_co
         va="center"
     )
 
-
-
     # Plot heading
     plot_heading(heading_ax, team1_name, team2_name, team1_color, team2_color)
-    
+
+    # Plot game info
+    plot_game_info(game_info_ax, metrics_df)
+
     return fig
 
 
@@ -153,9 +147,7 @@ def plot_heading(ax, team1_name, team2_name, team1_color, team2_color):
         The color name in the styling config of the first team.
     team2_color: str
         The color name in the styling config of the second team.
-    """
-    from matplotlib.patches import Rectangle, Ellipse
-    
+    """    
     # Turn off axis
     ax.axis('off')
     
@@ -189,67 +181,69 @@ def plot_heading(ax, team1_name, team2_name, team1_color, team2_color):
         va='center',
     )
 
-    # left_pill = mpatches.FancyBboxPatch((0.35, 0.1), 0.1, 0.5, 
-    #                         ec="none",
-    #                         boxstyle="Round, pad=0, rounding_size=0.05",
-    #                         facecolor=color1,
-    #                         # transform=ax.transData,
-    #                         # clip_on=False
-    #                     )
-    # ax.add_patch(left_pill)
+def plot_game_info(ax, metrics_df):
+    """
+    Plot the game info.
+    """
+    # Turn off axis
+    ax.axis('off')
+
+    # Belgium logo
+    current_file = Path(__file__).resolve()
+    project_root = current_file.parent.parent.parent
+    logo_path = project_root / 'static' / 'bel-logo.png'
+    logo = mpimg.imread(logo_path)
+    imagebox = OffsetImage(logo, zoom=0.5)
+    ab_belgium_logo = AnnotationBbox(
+        imagebox, 
+        (0.175, 1),                 # location of annotation box
+        xycoords='axes fraction',   # use axes fraction coordinates: relative to axes and percentage of axes for position
+        box_alignment=(0.5, 1),       # alignment of the annotation box: (1, 0) means right-aligned and bottom-aligned
+        frameon=False               # don't show the frame of the annotation box
+    )
+    ax.add_artist(ab_belgium_logo)
     
-    # # Pill dimensions
-    # pill_width = 0.1  # Width of each pill
-    # pill_height = 0.3  # Height - make it small for horizontal pill look
-    # gap = 0.05  # Gap between pills
-    
-    # # Calculate positions - center both pills together
-    # total_width = 2 * pill_width + gap
-    # left_x = 0.5 - total_width / 2
-    # right_x = 0.5 + gap / 2
-    # y = 0.5 - pill_height / 2
-    
-    # # Create pill shapes with high rounding to get capsule effect
-    # # The key is rounding_size should be close to height/2 to get semicircular ends
-    # left_pill = FancyBboxPatch(
-    #     (left_x, y), pill_width, pill_height,
-    #     boxstyle=f"round,pad=0,rounding_size={pill_height/2}",
-    #     facecolor=color1,
-    #     edgecolor='none',
-    #     transform=ax.transData,
-    #     clip_on=False
-    # )
-    # ax.add_patch(left_pill)
-    
-    # right_pill = FancyBboxPatch(
-    #     (right_x, y), pill_width, pill_height,
-    #     boxstyle=f"round,pad=0,rounding_size={pill_height/2}",
-    #     facecolor=color2,
-    #     edgecolor='none',
-    #     transform=ax.transData,
-    #     clip_on=False
-    # )
-    # ax.add_patch(right_pill)
-    
-    # # Add team names centered in each pill
-    # ax.text(
-    #     left_x + pill_width / 2, 0.5,
-    #     team1_name,
-    #     fontsize=styling.typo["sizes"]["h3"],
-    #     color='white',
-    #     ha='center',
-    #     va='center',
-    #     weight='bold',
-    #     transform=ax.transData
-    # )
-    
-    # ax.text(
-    #     right_x + pill_width / 2, 0.5,
-    #     team2_name,
-    #     fontsize=styling.typo["sizes"]["h3"],
-    #     color='white',
-    #     ha='center',
-    #     va='center',
-    #     weight='bold',
-    #     transform=ax.transData
-    # )
+    # North Macedonia logo
+    current_file = Path(__file__).resolve()
+    project_root = current_file.parent.parent.parent
+    logo_path = project_root / 'static' / 'mkd-logo.png'
+    logo = mpimg.imread(logo_path)
+    imagebox = OffsetImage(logo, zoom=0.45)
+    ab_north_macedonia_logo = AnnotationBbox(
+        imagebox, 
+        (0.825, 1),                 # location of annotation box
+        xycoords='axes fraction',   # use axes fraction coordinates: relative to axes and percentage of axes for position
+        box_alignment=(0.5, 1),       # alignment of the annotation box: (1, 0) means right-aligned and bottom-aligned
+        frameon=False               # don't show the frame of the annotation box
+    )
+    ax.add_artist(ab_north_macedonia_logo)
+
+    # Score
+    ax.text(0.5, 0.9, 
+        "0 - 0", 
+        fontsize=styling.typo["sizes"]["h0"],
+        fontproperties=styling.fonts['bold'],
+        color=styling.colors["primary"],
+        ha="center",
+        va="top"
+    )
+
+    # Competition
+    ax.text(0.5, 0.45, 
+        "World Cup Qualifiers", 
+        fontsize=styling.typo["sizes"]["p"],
+        fontproperties=styling.fonts['medium'],
+        color=styling.colors["primary"],
+        ha="center",
+        va="top",
+    )
+
+    # Date
+    ax.text(0.5, 0.25, 
+        "10/10/2025", 
+        fontsize=styling.typo["sizes"]["p"],
+        fontproperties=styling.fonts['medium'],
+        color=styling.colors["primary"],
+        ha="center",
+        va="top",
+    )
