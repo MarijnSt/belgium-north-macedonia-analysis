@@ -43,6 +43,18 @@ def calculate_dominance_metrics(events_df: pd.DataFrame, team1_name: str, team2_
         metrics[team1_name].append(round(field_tilt['team1_field_tilt'], 2))
         metrics[team2_name].append(round(field_tilt['team2_field_tilt'], 2))
 
+        # Final third entries
+        final_third_entries = calculate_final_third_entries(events_df, team1_name, team2_name)
+        metrics['Metric'].append('Final Third Entries')
+        metrics[team1_name].append(final_third_entries['team1_final_third_entries'])
+        metrics[team2_name].append(final_third_entries['team2_final_third_entries'])
+
+        # Box touches
+        box_touches = calculate_box_touches(events_df, team1_name, team2_name)
+        metrics['Metric'].append('Box Touches')
+        metrics[team1_name].append(box_touches['team1_box_touches'])
+        metrics[team2_name].append(box_touches['team2_box_touches'])
+
         # Shot metrics
         shot_metrics = calculate_shot_metrics(events_df, team1_name, team2_name)
         metrics['Metric'].append('xG')
@@ -136,7 +148,7 @@ def calculate_field_tilt(events_df: pd.DataFrame, team1_name: str, team2_name: s
             (events_df["endPosXM"] >= 17.5)
         ]
 
-        logger.info(f"Passes in final third: {len(passes_in_final_third)}")
+        logger.debug(f"Passes in final third: {len(passes_in_final_third)}")
 
         # Count passes
         total_passes = len(passes_in_final_third)
@@ -147,8 +159,8 @@ def calculate_field_tilt(events_df: pd.DataFrame, team1_name: str, team2_name: s
         team1_field_tilt = (team1_passes / total_passes) * 100
         team2_field_tilt = (team2_passes / total_passes) * 100
 
-        logger.info(f"Field tilt for {team1_name}: {team1_field_tilt:.2f}%")
-        logger.info(f"Field tilt for {team2_name}: {team2_field_tilt:.2f}%")
+        logger.debug(f"Field tilt for {team1_name}: {team1_field_tilt:.2f}%")
+        logger.debug(f"Field tilt for {team2_name}: {team2_field_tilt:.2f}%")
 
         return {
             "team1_field_tilt": team1_field_tilt,
@@ -157,6 +169,95 @@ def calculate_field_tilt(events_df: pd.DataFrame, team1_name: str, team2_name: s
 
     except Exception as e:
         logger.error(f"Error calculating field tilt: {e}")
+        raise e
+
+def calculate_final_third_entries(events_df: pd.DataFrame, team1_name: str, team2_name: str) -> float:
+    """
+    Calculate final third entries for a team.
+
+    Parameters:
+    -----------
+    events_df: pd.DataFrame
+        The events dataframe of the game.
+    team1_name: str
+        The name of the first team.
+    team2_name: str
+        The name of the second team.
+
+    Returns:
+    --------
+    float
+        The final third entries for the teams.
+    """
+    try:
+        # Get passes in final third
+        final_third_entries_df = events_df[
+            (events_df["startPosXM"] < 17.5) &
+            (events_df["endPosXM"] >= 17.5)
+        ]
+
+        logger.debug(f"Final third entries: {len(final_third_entries_df)}")
+
+        # Count final third entries
+        team1_final_third_entries = len(final_third_entries_df[final_third_entries_df["teamName"] == team1_name])
+        team2_final_third_entries = len(final_third_entries_df[final_third_entries_df["teamName"] == team2_name])
+
+        logger.debug(f"Final third entries for {team1_name}: {team1_final_third_entries}")
+        logger.debug(f"Final third entries for {team2_name}: {team2_final_third_entries}")
+
+        return {
+            "team1_final_third_entries": team1_final_third_entries,
+            "team2_final_third_entries": team2_final_third_entries,
+        }
+    
+    except Exception as e:
+        logger.error(f"Error calculating final third entries: {e}")
+        raise e
+
+def calculate_box_touches(events_df: pd.DataFrame, team1_name: str, team2_name: str) -> float:
+    """
+    Calculate box touches for a team.
+
+    Parameters:
+    -----------
+    events_df: pd.DataFrame
+        The events dataframe of the game.
+    team1_name: str
+        The name of the first team.
+    team2_name: str
+        The name of the second team.
+
+    Returns:
+    --------
+    float
+        The box touches for the teams.
+    """
+    try:
+        # Filter for box touches
+        touch_events = ['PASS', 'DRIBBLE', 'TAKE_ON', 'CARRY', 'TOUCH']
+        box_touches_df = events_df[
+            events_df['baseTypeName'].isin(touch_events) &
+            (events_df['startPosXM'] >= 36) &
+            (events_df['startPosYM'] >= -20.16) &
+            (events_df['startPosYM'] <= 20.16)
+        ]
+
+        logger.debug(f"Box touches: {len(box_touches_df)}")
+
+        # Count box touches
+        team1_box_touches = len(box_touches_df[box_touches_df["teamName"] == team1_name])
+        team2_box_touches = len(box_touches_df[box_touches_df["teamName"] == team2_name])
+
+        logger.debug(f"Box touches for {team1_name}: {team1_box_touches}")
+        logger.debug(f"Box touches for {team2_name}: {team2_box_touches}")
+
+        return {
+            "team1_box_touches": team1_box_touches,
+            "team2_box_touches": team2_box_touches,
+        }
+    
+    except Exception as e:
+        logger.error(f"Error calculating box touches: {e}")
         raise e
 
 def calculate_shot_metrics(events_df: pd.DataFrame, team1_name: str, team2_name: str) -> float:
@@ -235,3 +336,4 @@ def calculate_shot_metrics(events_df: pd.DataFrame, team1_name: str, team2_name:
     except Exception as e:
         logger.error(f"Error calculating xG: {e}")
         raise e
+
