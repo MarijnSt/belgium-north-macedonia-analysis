@@ -10,11 +10,12 @@ from pathlib import Path
 import logging
 
 from config import styling
+from transform import get_passing_network_data
 
 # Get logger (initialized in source file)
 logger = logging.getLogger(__name__)
 
-def create_game_summary(events_df, team1_name, team1_color, team2_name, team2_color, metrics_df):
+def create_game_summary(events_df, player_data, team1_name, team1_color, team2_name, team2_color, metrics_df):
     """
     Create a comprehensive 3-column game summary.
 
@@ -22,6 +23,8 @@ def create_game_summary(events_df, team1_name, team1_color, team2_name, team2_co
     -----------
     events_df: pd.DataFrame
         The events dataframe of the game.
+    player_data: pd.DataFrame
+        The player dataframe of the game.
     team1_name: str
         The name of the first team.
     team1_color: str
@@ -67,28 +70,10 @@ def create_game_summary(events_df, team1_name, team1_color, team2_name, team2_co
     territorial_heatmap_ax = fig.add_subplot(gs[2:4, 1])
     stats_comparison_ax = fig.add_subplot(gs[4:7, 1])
 
-    # Add text to each axis    
-    team1_passing_network_ax.text(
-        0.5, 0.5, 
-        f"{team1_name} - Passing Network", 
-        fontsize=styling.typo["sizes"]["p"], 
-        color=styling.colors["primary"], 
-        ha="center", 
-        va="center"
-    )
-
+    # Add text to each axis
     team1_shot_map_ax.text(
         0.5, 0.5, 
         f"{team1_name} - Shot Map", 
-        fontsize=styling.typo["sizes"]["p"], 
-        color=styling.colors["primary"], 
-        ha="center", 
-        va="center"
-    )
-
-    team2_passing_network_ax.text(
-        0.5, 0.5, 
-        f"{team2_name} - Passing Network", 
         fontsize=styling.typo["sizes"]["p"], 
         color=styling.colors["primary"], 
         ha="center", 
@@ -126,27 +111,18 @@ def create_game_summary(events_df, team1_name, team1_color, team2_name, team2_co
     plot_heading(heading_ax, team1_name, team2_name, team1_color, team2_color)
 
     # Plot game info
-    plot_game_info(game_info_ax, metrics_df)
+    plot_game_info(game_info_ax)
+
+    # Plot passing network
+    plot_passing_network(team1_passing_network_ax, events_df, player_data, team1_name, team1_color)
+    plot_passing_network(team2_passing_network_ax, events_df, player_data, team2_name, team2_color)
 
     return fig
 
 
 def plot_heading(ax, team1_name, team2_name, team1_color, team2_color):
     """
-    Plot the heading with pill-shaped team name badges.
-
-    Parameters:
-    -----------
-    ax: matplotlib.axes.Axes
-        The axis to plot on.
-    team1_name: str
-        The name of the first team.
-    team2_name: str
-        The name of the second team.
-    team1_color: str
-        The color name in the styling config of the first team.
-    team2_color: str
-        The color name in the styling config of the second team.
+    Plot the heading with pill-shaped team names.
     """    
     # Turn off axis
     ax.axis('off')
@@ -181,9 +157,9 @@ def plot_heading(ax, team1_name, team2_name, team1_color, team2_color):
         va='center',
     )
 
-def plot_game_info(ax, metrics_df):
+def plot_game_info(ax):
     """
-    Plot the game info.
+    Plot the game info: logos, score, competition and date.
     """
     # Turn off axis
     ax.axis('off')
@@ -247,3 +223,62 @@ def plot_game_info(ax, metrics_df):
         ha="center",
         va="top",
     )
+
+def plot_passing_network(ax, events_df, player_data, team_name, team_color):
+    """
+    Plot the passing network.
+    """
+    # Turn off axis
+    # ax.axis('off')
+
+    # Get team colors from styling
+    color = styling.colors[team_color]
+
+    pitch = VerticalPitch(
+        pitch_type=styling.pitch['pitch_type'],
+        pitch_length=styling.pitch['pitch_length'],
+        pitch_width=styling.pitch['pitch_width'],
+        line_color=styling.pitch['line_color'], 
+        linewidth=styling.pitch['linewidth'], 
+        goal_type=styling.pitch['goal_type'], 
+        corner_arcs=styling.pitch['corner_arcs'],
+    )
+    pitch.draw(ax=ax)
+
+    # Create scatter and lines data
+    scatter_df, lines_df = get_passing_network_data(events_df, player_data, team_name)
+
+    # Scatter the location on the pitch
+    pitch.scatter(scatter_df.x, scatter_df.y, s=scatter_df.marker_size, color=color, edgecolors=None, linewidth=1, alpha=1, ax=ax, zorder=3)
+    
+    # Annotating player number
+    for i, row in scatter_df.iterrows():
+        pitch.annotate(
+            int(row.playerShirtNumber), 
+            xy=(row.x, row.y), 
+            c='white', 
+            va='center', 
+            ha='center',  
+            size=styling.typo['sizes']['p'],
+            fontproperties=styling.fonts['medium_italic'],
+            ax=ax, 
+            zorder=4
+        )
+    
+    # Plot lines between players
+    for i, row in lines_df.iterrows():
+        # Get player shirt numbers
+        player1 = int(row["pair_key"].split("_")[0])
+        player2 = int(row['pair_key'].split("_")[1])
+        # Take the average location of players to plot a line between them
+        player1_x = scatter_df.loc[scatter_df["playerShirtNumber"] == player1]['x'].iloc[0]
+        player1_y = scatter_df.loc[scatter_df["playerShirtNumber"] == player1]['y'].iloc[0]
+        player2_x = scatter_df.loc[scatter_df["playerShirtNumber"] == player2]['x'].iloc[0]
+        player2_y = scatter_df.loc[scatter_df["playerShirtNumber"] == player2]['y'].iloc[0]
+        num_passes = row["pass_count"]
+        
+        # Set line width
+        line_width = (num_passes / lines_df['pass_count'].max() * 5)
+        
+        # Plot lines on the pitch
+        pitch.lines(player1_x, player1_y, player2_x, player2_y, alpha=1, lw=line_width, zorder=2, color=color, ax=ax)

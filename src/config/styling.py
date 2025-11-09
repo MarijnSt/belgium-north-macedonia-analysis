@@ -67,7 +67,9 @@ class StylingConfig:
 
     # Pitch
     pitch = {
-        'pitch_type': "statsbomb",
+        'pitch_type': "secondspectrum",
+        'pitch_length': 105,
+        'pitch_width': 68,
         'line_color': colors['primary'],
         'linewidth': 0.5,
         'half': False,
