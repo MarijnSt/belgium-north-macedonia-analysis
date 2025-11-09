@@ -25,75 +25,61 @@ def calculate_dominance_metrics(events_df: pd.DataFrame, team1_name: str, team2_
         A dataframe with the dominance metrics for both teams.
     """
     try:
-        metrics = {
-            'Metric': [],
-            team1_name: [],
-            team2_name: []
-        }
+        # Init team dictionaries
+        team1_metrics = {"team": team1_name}
+        team2_metrics = {"team": team2_name}
 
         # Possession
         team1_possession_percentage, team2_possession_percentage = calculate_possession(events_df, team1_name, team2_name)
-        metrics['Metric'].append('Possession %')
-        metrics[team1_name].append(round(team1_possession_percentage, 2))
-        metrics[team2_name].append(round(team2_possession_percentage, 2))
+        team1_metrics['possession'] = round(team1_possession_percentage, 2)
+        team2_metrics['possession'] = round(team2_possession_percentage, 2)
 
         # Field tilt
         field_tilt = calculate_field_tilt(events_df, team1_name, team2_name)
-        metrics['Metric'].append('Field Tilt')
-        metrics[team1_name].append(round(field_tilt['team1_field_tilt'], 2))
-        metrics[team2_name].append(round(field_tilt['team2_field_tilt'], 2))
+        team1_metrics['field_tilt'] = round(field_tilt['team1_field_tilt'], 2)
+        team2_metrics['field_tilt'] = round(field_tilt['team2_field_tilt'], 2)
 
         # Final third entries
         final_third_entries = calculate_final_third_entries(events_df, team1_name, team2_name)
-        metrics['Metric'].append('Final Third Entries')
-        metrics[team1_name].append(final_third_entries['team1_final_third_entries'])
-        metrics[team2_name].append(final_third_entries['team2_final_third_entries'])
+        team1_metrics['final_third_entries'] = final_third_entries['team1_final_third_entries']
+        team2_metrics['final_third_entries'] = final_third_entries['team2_final_third_entries']
 
         # Box touches
         box_touches = calculate_box_touches(events_df, team1_name, team2_name)
-        metrics['Metric'].append('Box Touches')
-        metrics[team1_name].append(box_touches['team1_box_touches'])
-        metrics[team2_name].append(box_touches['team2_box_touches'])
+        team1_metrics['box_touches'] = box_touches['team1_box_touches']
+        team2_metrics['box_touches'] = box_touches['team2_box_touches']
 
         # Progressive passes
         prog_passes = calculate_progressive_passes(events_df, team1_name, team2_name)
-        metrics['Metric'].append('Progressive Passes')
-        metrics[team1_name].append(prog_passes['team1_prog_passes'])
-        metrics[team2_name].append(prog_passes['team2_prog_passes'])
+        team1_metrics['progressive_passes'] = prog_passes['team1_prog_passes']
+        team2_metrics['progressive_passes'] = prog_passes['team2_prog_passes']
 
-        metrics['Metric'].append('Progressive Passes Outside Final Third')
-        metrics[team1_name].append(prog_passes['team1_prog_passes_outside_final_third'])
-        metrics[team2_name].append(prog_passes['team2_prog_passes_outside_final_third'])
+        team1_metrics['pp_outside_final_third'] = prog_passes['team1_prog_passes_outside_final_third']
+        team2_metrics['pp_outside_final_third'] = prog_passes['team2_prog_passes_outside_final_third']
 
-        metrics['Metric'].append('Progressive Passes In Final Third')
-        metrics[team1_name].append(prog_passes['team1_prog_passes_in_final_third'])
-        metrics[team2_name].append(prog_passes['team2_prog_passes_in_final_third'])
+        team1_metrics['pp_in_final_third'] = prog_passes['team1_prog_passes_in_final_third']
+        team2_metrics['pp_in_final_third'] = prog_passes['team2_prog_passes_in_final_third']
 
         # Shot metrics
         shot_metrics = calculate_shot_metrics(events_df, team1_name, team2_name)
-        metrics['Metric'].append('xG')
-        metrics[team1_name].append(round(shot_metrics['team1_xg'], 2))
-        metrics[team2_name].append(round(shot_metrics['team2_xg'], 2))
+        team1_metrics['xG'] = round(shot_metrics['team1_xg'], 2)
+        team2_metrics['xG'] = round(shot_metrics['team2_xg'], 2)
 
-        metrics['Metric'].append('Total Shots')
-        metrics[team1_name].append(shot_metrics['team1_total_shots'])
-        metrics[team2_name].append(shot_metrics['team2_total_shots'])
+        team1_metrics['total_shots'] = shot_metrics['team1_total_shots']
+        team2_metrics['total_shots'] = shot_metrics['team2_total_shots']
 
-        metrics['Metric'].append('On target Shots')
-        metrics[team1_name].append(shot_metrics['team1_on_target_shots'])
-        metrics[team2_name].append(shot_metrics['team2_on_target_shots'])
+        team1_metrics['on_target_shots'] = shot_metrics['team1_on_target_shots']
+        team2_metrics['on_target_shots'] = shot_metrics['team2_on_target_shots']
 
-        metrics['Metric'].append('Blocked Shots')
-        metrics[team1_name].append(shot_metrics['team1_blocked_shots'])
-        metrics[team2_name].append(shot_metrics['team2_blocked_shots'])
+        team1_metrics['blocked_shots'] = shot_metrics['team1_blocked_shots']
+        team2_metrics['blocked_shots'] = shot_metrics['team2_blocked_shots']
 
         # PPDA
         ppda = calculate_ppda(events_df, team1_name, team2_name)
-        metrics['Metric'].append('PPDA')
-        metrics[team1_name].append(round(ppda['team1_ppda'], 2))
-        metrics[team2_name].append(round(ppda['team2_ppda'], 2))
+        team1_metrics['ppda'] = round(ppda['team1_ppda'], 2)
+        team2_metrics['ppda'] = round(ppda['team2_ppda'], 2)
 
-        return pd.DataFrame(metrics)
+        return pd.DataFrame([team1_metrics, team2_metrics])
     
     except Exception as e:
         logger.error(f"Error calculating dominance metrics: {e}")
@@ -453,7 +439,7 @@ def calculate_ppda(events_df: pd.DataFrame, team1_name: str, team2_name: str) ->
         passes_team1 += len(clearances_df[clearances_df["teamName"] == team1_name])
         passes_team2 += len(clearances_df[clearances_df["teamName"] == team2_name])
 
-        logger.info(f"Passes: {team1_name} - {passes_team1}, {team2_name} - {passes_team2}")
+        logger.debug(f"Passes: {team1_name} - {passes_team1}, {team2_name} - {passes_team2}")
 
         # Filter for defensive actions in opposition buildup and progression thirds
         # Tackle: 400 (geslaagd)
@@ -470,13 +456,13 @@ def calculate_ppda(events_df: pd.DataFrame, team1_name: str, team2_name: str) ->
         defensive_actions_team1 = len(defensive_actions_df[defensive_actions_df["teamName"] == team1_name])
         defensive_actions_team2 = len(defensive_actions_df[defensive_actions_df["teamName"] == team2_name])
         
-        logger.info(f"Defensive actions: {team1_name} - {defensive_actions_team1}, {team2_name} - {defensive_actions_team2}")
+        logger.debug(f"Defensive actions: {team1_name} - {defensive_actions_team1}, {team2_name} - {defensive_actions_team2}")
 
         # Calculate PPDA
         ppda_team1 = passes_team2 / defensive_actions_team1
         ppda_team2 = passes_team1 / defensive_actions_team2
 
-        logger.info(f"PPDA: {team1_name} - {ppda_team1}, {team2_name} - {ppda_team2}")
+        logger.debug(f"PPDA: {team1_name} - {ppda_team1}, {team2_name} - {ppda_team2}")
 
         return {
             "team1_ppda": ppda_team1,
