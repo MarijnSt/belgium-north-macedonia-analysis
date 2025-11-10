@@ -3,7 +3,7 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-def transform_tracking_to_long_format(tracking_df: pd.DataFrame) -> pd.DataFrame:
+def transform_tracking_to_long_format(tracking_df: pd.DataFrame, events_df: pd.DataFrame) -> pd.DataFrame:
     """
     Transform the tracking data to long format.
 
@@ -11,6 +11,8 @@ def transform_tracking_to_long_format(tracking_df: pd.DataFrame) -> pd.DataFrame
     -----------
     tracking_df: pd.DataFrame
         The tracking dataframe to transform.
+    events_df: pd.DataFrame
+        The events dataframe to get the first substitution timestamp from.
 
     Returns:
     --------
@@ -18,17 +20,34 @@ def transform_tracking_to_long_format(tracking_df: pd.DataFrame) -> pd.DataFrame
         The transformed dataframe.
     """
     try:
+        # Get first substitution timestamp
+        first_sub_events = events_df[events_df["baseTypeName"] == "SUBSTITUTE"]
+        if len(first_sub_events) > 0:
+            first_sub_timestamp = first_sub_events.iloc[0]["timestamp"]
+            logger.info(f"First substitution timestamp: {first_sub_timestamp}")
+        else:
+            logger.warning("No substitution events found")
+            first_sub_timestamp = None
+
+        # Filter tracking data to before first substitution timestamp
+        if first_sub_timestamp is not None:
+            filtered_tracking_df = tracking_df[tracking_df["wall_clock"] < first_sub_timestamp].copy()
+            logger.info(f"Kept {len(filtered_tracking_df)} filtered rows compared to original {len(tracking_df)} rows.")
+        else:
+            filtered_tracking_df = tracking_df.copy()
+            logger.info(f"Kept all {len(filtered_tracking_df)} rows.")
+        
         # Base columns
         base_cols = ["frame_id", "period_id", "timestamp", "wall_clock", "ball_status", 
                     "last_touch", "ball_x", "ball_y", "ball_z", "ball_speed"]
         
-        id_vars = [col for col in base_cols if col in tracking_df.columns]
+        id_vars = [col for col in base_cols if col in filtered_tracking_df.columns]
         
         # Get all player columns
-        player_cols = [col for col in tracking_df.columns if col not in base_cols]
+        player_cols = [col for col in filtered_tracking_df.columns if col not in base_cols]
         
         # Melt the data
-        melted = tracking_df.melt(
+        melted = filtered_tracking_df.melt(
             id_vars=id_vars,
             value_vars=player_cols,
             var_name="column",
@@ -64,7 +83,7 @@ def transform_tracking_to_long_format(tracking_df: pd.DataFrame) -> pd.DataFrame
         
         # Add ball - only select columns that exist in both dataframes
         ball_cols = [col for col in id_vars if col not in ["ball_status", "ball_z"]]
-        ball_data = tracking_df[ball_cols].copy()
+        ball_data = filtered_tracking_df[ball_cols].copy()
         ball_data["team_name"] = "ball"
         ball_data["player_id"] = "ball"
         ball_data["shirt_number"] = 0
