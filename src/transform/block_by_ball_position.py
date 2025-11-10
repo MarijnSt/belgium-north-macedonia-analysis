@@ -1,5 +1,10 @@
 import logging
 import pandas as pd
+import numpy as np
+from scipy.spatial import ConvexHull
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+import matplotlib.patches as mpatches
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +34,48 @@ def get_ball_zone(ball_x: float, ball_y: float, zones=ZONES) -> str:
             
     logger.error(f"Ball ({ball_x}, {ball_y}) not in relevant zones")
     return None
+
+def calculate_convex_hull_area(points):
+    """
+    Calculate the area of the convex hull.
+    """
+    if len(points) < 3:
+        return None
+    try:
+        hull = ConvexHull(points)
+        return hull.volume  # in 2D is dit de oppervlakte
+    except:
+        return None
+
+def calculate_team_compactness(team_df):
+    """
+    Calculate compactness metrics for a team at a moment.
+    
+    Returns 
+    --------
+    dict
+        A dictionary with the compactness metrics for the team.
+        The keys are:
+        - area: float (area of the convex hull)
+        - vertical_spread: float (difference between highest and lowest player)
+        - horizontal_spread: float (difference between leftmost and rightmost player)
+        - mean_x: float (mean x coordinate of the players)
+        - mean_y: float (mean y coordinate of the players)
+        - defensive_line: float (x coordinate of the highest player)
+    """
+    if len(team_df) < 3:
+        return None
+    
+    points = team_df[['x', 'y']].values
+    
+    return {
+        'area': calculate_convex_hull_area(points),
+        'vertical_spread': team_df['x'].max() - team_df['x'].min(),
+        'horizontal_spread': team_df['y'].max() - team_df['y'].min(),
+        'mean_x': team_df['x'].mean(),
+        'mean_y': team_df['y'].mean(),
+        'defensive_line': team_df['x'].max(),  # hoogste (meest aanvallende) verdediger
+    }
 
 def analyze_block_by_ball_position(
     tracking_df: pd.DataFrame,
