@@ -10,7 +10,7 @@ from pathlib import Path
 import logging
 
 from config import styling
-from transform import get_passing_network_data
+from transform import get_passing_network_data, get_territorial_heatmap_data
 
 # Get logger (initialized in source file)
 logger = logging.getLogger(__name__)
@@ -89,15 +89,6 @@ def create_game_summary(events_df, player_data, team1_name, team1_color, team2_n
         va="center"
     )
 
-    territorial_heatmap_ax.text(
-        0.5, 0.5, 
-        "Territorial Heatmap", 
-        fontsize=styling.typo["sizes"]["p"], 
-        color=styling.colors["primary"], 
-        ha="center", 
-        va="center"
-    )
-
     stats_comparison_ax.text(
         0.5, 0.5, 
         "Stats Comparison", 
@@ -116,6 +107,9 @@ def create_game_summary(events_df, player_data, team1_name, team1_color, team2_n
     # Plot passing network
     plot_passing_network(team1_passing_network_ax, events_df, player_data, team1_name, team1_color)
     plot_passing_network(team2_passing_network_ax, events_df, player_data, team2_name, team2_color)
+
+    # Plot territorial heatmap
+    plot_territorial_heatmap(territorial_heatmap_ax, events_df, team1_name, team2_name, team1_color, team2_color)
 
     return fig
 
@@ -282,3 +276,110 @@ def plot_passing_network(ax, events_df, player_data, team_name, team_color):
         
         # Plot lines on the pitch
         pitch.lines(player1_x, player1_y, player2_x, player2_y, alpha=1, lw=line_width, zorder=2, color=color, ax=ax)
+
+def plot_territorial_heatmap(ax, events_df, team1_name, team2_name, team1_color, team2_color):
+    """
+    Plot a territorial heatmap showing pitch control by both teams.
+    
+    Parameters:
+    -----------
+    ax: matplotlib.axes.Axes
+        The axis to plot on
+    events_df: pd.DataFrame
+        The events dataframe
+    team1_name: str
+        Name of the first team
+    team2_name: str
+        Name of the second team
+    team1_color: str
+        Color key for team1 in styling
+    team2_color: str
+        Color key for team2 in styling
+    """
+    from scipy.ndimage import gaussian_filter
+    from matplotlib.colors import LinearSegmentedColormap
+    
+    # Get team colors from styling
+    color1 = styling.colors[team1_color]
+    color2 = styling.colors[team2_color]
+    
+    # Create pitch
+    pitch = Pitch(
+        pitch_type=styling.pitch['pitch_type'],
+        pitch_length=styling.pitch['pitch_length'],
+        pitch_width=styling.pitch['pitch_width'],
+        line_color=styling.pitch['line_color'], 
+        linewidth=styling.pitch['linewidth'], 
+        goal_type=styling.pitch['goal_type'], 
+        corner_arcs=styling.pitch['corner_arcs'],
+    )
+    pitch.draw(ax=ax)
+    
+    # Filter events with location data
+    df_team1, df_team2 = get_territorial_heatmap_data(events_df, team1_name, team2_name)
+    
+    # Use finer bins for smoother result
+    bins_x = 60
+    bins_y = 40
+    
+    # SecondSpectrum coordinates are centered at 0
+    x_range = [-styling.pitch['pitch_length']/2, styling.pitch['pitch_length']/2]
+    y_range = [-styling.pitch['pitch_width']/2, styling.pitch['pitch_width']/2]
+    
+    # Create 2D histogram for each team
+    heatmap_team1, xedges, yedges = np.histogram2d(
+        df_team1['startPosXM'], 
+        df_team1['startPosYM'],
+        bins=[bins_x, bins_y],
+        range=[x_range, y_range]
+    )
+    
+    heatmap_team2, _, _ = np.histogram2d(
+        df_team2['startPosXM'], 
+        df_team2['startPosYM'],
+        bins=[bins_x, bins_y],
+        range=[x_range, y_range]
+    )
+    
+    # Apply strong Gaussian smoothing for that blurred look
+    sigma = 3
+    heatmap_team1_smooth = gaussian_filter(heatmap_team1, sigma=sigma)
+    heatmap_team2_smooth = gaussian_filter(heatmap_team2, sigma=sigma)
+    
+    # Calculate dominance: positive values = team1, negative = team2
+    total = heatmap_team1_smooth + heatmap_team2_smooth
+    # Avoid division by zero
+    dominance = np.divide(
+        heatmap_team1_smooth - heatmap_team2_smooth, 
+        total, 
+        out=np.zeros_like(total), 
+        where=total != 0
+    )
+    
+    # Create a diverging colormap
+    colors = [color2, '#FFFFFF', color1]
+    n_bins = 256
+    cmap = LinearSegmentedColormap.from_list('territorial', colors, N=n_bins)
+    
+    extent = [x_range[0], x_range[1], y_range[0], y_range[1]]
+    
+    ax.imshow(
+        dominance.T,
+        extent=extent,
+        origin='lower',
+        cmap=cmap,
+        vmin=-1,
+        vmax=1,
+        alpha=0.6,
+        aspect='auto',
+        zorder=1,
+        interpolation='bilinear' 
+    )
+
+    ax.text(0, -37.5, 
+        f"Territorial Heatmap: {team1_name} attacking from left to right", 
+        fontsize=styling.typo["sizes"]["p"], 
+        color=styling.colors["primary"], 
+        ha="center", 
+        va="center"
+    )
