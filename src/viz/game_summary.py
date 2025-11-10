@@ -2,12 +2,14 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Ellipse
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import matplotlib.image as mpimg
+from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 import pandas as pd
 from mplsoccer import Pitch
 from mplsoccer import VerticalPitch
 from pathlib import Path
 import logging
+from scipy.ndimage import gaussian_filter
 
 from config import styling
 from transform import get_passing_network_data, get_territorial_heatmap_data
@@ -89,15 +91,6 @@ def create_game_summary(events_df, player_data, team1_name, team1_color, team2_n
         va="center"
     )
 
-    stats_comparison_ax.text(
-        0.5, 0.5, 
-        "Stats Comparison", 
-        fontsize=styling.typo["sizes"]["p"], 
-        color=styling.colors["primary"], 
-        ha="center", 
-        va="center"
-    )
-
     # Plot heading
     plot_heading(heading_ax, team1_name, team2_name, team1_color, team2_color)
 
@@ -110,6 +103,9 @@ def create_game_summary(events_df, player_data, team1_name, team1_color, team2_n
 
     # Plot territorial heatmap
     plot_territorial_heatmap(territorial_heatmap_ax, events_df, team1_name, team2_name, team1_color, team2_color)
+    
+    # Plot stats comparison
+    plot_stats_comparison(stats_comparison_ax, metrics_df, team1_name, team2_name, team1_color, team2_color)
 
     return fig
 
@@ -295,10 +291,7 @@ def plot_territorial_heatmap(ax, events_df, team1_name, team2_name, team1_color,
         Color key for team1 in styling
     team2_color: str
         Color key for team2 in styling
-    """
-    from scipy.ndimage import gaussian_filter
-    from matplotlib.colors import LinearSegmentedColormap
-    
+    """    
     # Get team colors from styling
     color1 = styling.colors[team1_color]
     color2 = styling.colors[team2_color]
@@ -383,3 +376,106 @@ def plot_territorial_heatmap(ax, events_df, team1_name, team2_name, team1_color,
         ha="center", 
         va="center"
     )
+
+def plot_stats_comparison(ax, metrics_df, team1_name, team2_name, team1_color, team2_color):
+    """
+    Plot the stats comparison.
+    """
+    # Turn off axis
+    ax.axis('off')
+
+    # Get team colors from styling
+    color1 = styling.colors[team1_color]
+    color2 = styling.colors[team2_color]
+
+    # Define which stats to display and their labels
+    stats_to_plot = [
+        ('possession', 'Ball possession'),
+        ('field_tilt', 'Field tilt'),
+        ('xG', 'Expected goals'),
+        ('total_shots', 'Total shots'),
+        ('on_target_shots', 'On target shots'),
+        ('ppda', 'Passes allowed per defensive action'),
+        ('final_third_entries', 'Final third entries'),
+        ('box_touches', 'Box touches'),
+        ('progressive_passes', 'Progressive passes')
+    ]
+    
+    # Get team data
+    team1_data = metrics_df[metrics_df['team'] == team1_name].iloc[0]
+    team2_data = metrics_df[metrics_df['team'] == team2_name].iloc[0]
+    
+    bar_height = 0.5
+    scatter_size = 475
+    
+    for i, (stat, label) in enumerate(stats_to_plot):
+        y_pos = len(stats_to_plot) - 1 - i  # Reverse order to match typical display
+        
+        # Get values and normalize
+        val1 = team1_data[stat]
+        val2 = team2_data[stat]
+        total = val1 + val2
+        
+        norm_val1 = val1 / total
+        norm_val2 = val2 / total
+        
+        # Create stat bars for each team
+        ax.barh(y_pos, norm_val1, height=bar_height, color=color1, align='center', zorder=2)
+        ax.barh(y_pos, norm_val2, height=bar_height, left=norm_val1, color=color2, align='center', zorder=2)
+        
+        # Add rounded edges using scatter points
+        ax.scatter(0, y_pos, s=scatter_size, color=color1, zorder=3, marker='o')
+        ax.scatter(1, y_pos, s=scatter_size, color=color2, zorder=1, marker='o')
+        
+        # Middle junction (where colors meet)
+        ax.scatter(norm_val1, y_pos, s=scatter_size, color=color1, zorder=3, marker='o')
+        
+        # Set labels (decimal points, percentages, etc.)
+        label1 = f"{val1:.0f}"
+        label2 = f"{val2:.0f}"
+        # Percentage labels
+        if stat in ['possession', 'field_tilt']:
+            label1 = f"{val1:.0f}%"
+            label2 = f"{val2:.0f}%"
+        # Decimal points
+        if stat in ['xG', 'ppda']:
+            label1 = f"{val1:.2f}"
+            label2 = f"{val2:.2f}"
+
+        # Label for team 1 (left side)
+        ax.text(0.02, y_pos, 
+            label1, 
+            va='center', 
+            ha='left', 
+            fontsize=styling.typo["sizes"]["h4"], 
+            fontproperties=styling.fonts['medium_italic'],
+            color='white', 
+            zorder=4
+        )
+        
+        # Label for team 2 (right side)
+        ax.text(0.98, y_pos, 
+            label2,
+            va='center', 
+            ha='right', 
+            fontsize=styling.typo["sizes"]["h4"], 
+            fontproperties=styling.fonts['medium_italic'],
+            color='white', 
+            zorder=4
+        )
+        
+        # Add stat label in the center
+        ax.text(0.5, y_pos,
+            label,
+            va='center', 
+            ha='center', 
+            fontsize=styling.typo["sizes"]["h4"], 
+            fontproperties=styling.fonts['medium_italic'],
+            color='#ffffff', 
+            zorder=4
+        )
+    
+        # Styling
+        ax.set_xlim(-0.05, 1.05)
+        ax.set_ylim(-0.5, len(stats_to_plot) - 0.5)
+

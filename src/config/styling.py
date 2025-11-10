@@ -60,6 +60,7 @@ class StylingConfig:
             'h1': 22,
             'h2': 18,
             'h3': 16,
+            'h4': 14,
             'p': 12,
             'label': 8,
         },
