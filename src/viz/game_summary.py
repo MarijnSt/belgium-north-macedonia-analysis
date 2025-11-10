@@ -1,14 +1,15 @@
+from datetime import datetime
+import logging
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Ellipse
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import matplotlib.image as mpimg
 from matplotlib.colors import LinearSegmentedColormap
-import numpy as np
-import pandas as pd
 from mplsoccer import Pitch
 from mplsoccer import VerticalPitch
+import numpy as np
+import pandas as pd
 from pathlib import Path
-import logging
 from scipy.ndimage import gaussian_filter
 
 from config import styling
@@ -72,25 +73,6 @@ def create_game_summary(events_df, player_data, team1_name, team1_color, team2_n
     territorial_heatmap_ax = fig.add_subplot(gs[2:4, 1])
     stats_comparison_ax = fig.add_subplot(gs[4:7, 1])
 
-    # Add text to each axis
-    team1_shot_map_ax.text(
-        0.5, 0.5, 
-        f"{team1_name} - Shot Map", 
-        fontsize=styling.typo["sizes"]["p"], 
-        color=styling.colors["primary"], 
-        ha="center", 
-        va="center"
-    )
-
-    team2_shot_map_ax.text(
-        0.5, 0.5, 
-        f"{team2_name} - Shot Map", 
-        fontsize=styling.typo["sizes"]["p"], 
-        color=styling.colors["primary"], 
-        ha="center", 
-        va="center"
-    )
-
     # Plot heading
     plot_heading(heading_ax, team1_name, team2_name, team1_color, team2_color)
 
@@ -107,8 +89,23 @@ def create_game_summary(events_df, player_data, team1_name, team1_color, team2_n
     # Plot stats comparison
     plot_stats_comparison(stats_comparison_ax, metrics_df, team1_name, team2_name, team1_color, team2_color)
 
-    return fig
+    # Plot shots
+    plot_shots(team1_shot_map_ax, events_df, team1_name, team1_color)
+    plot_shots(team2_shot_map_ax, events_df, team2_name, team2_color)
 
+    # Save plot
+    current_file = Path(__file__).resolve()
+    project_root = current_file.parent.parent.parent
+    default_kwargs = {
+        'bbox_inches': 'tight',
+        'pad_inches': 0.25,
+        'facecolor': styling.colors['light'],
+        'dpi': 300
+    }
+    output_path = project_root / 'outputs' / 'game_summary' / f'{team1_name}-{team2_name}-{datetime.now().strftime("%Y-%m-%d %H:%M")}.png'
+    fig.savefig(output_path, **default_kwargs)
+
+    return fig
 
 def plot_heading(ax, team1_name, team2_name, team1_color, team2_color):
     """
@@ -219,7 +216,7 @@ def plot_passing_network(ax, events_df, player_data, team_name, team_color):
     Plot the passing network.
     """
     # Turn off axis
-    # ax.axis('off')
+    ax.axis('off')
 
     # Get team colors from styling
     color = styling.colors[team_color]
@@ -260,6 +257,7 @@ def plot_passing_network(ax, events_df, player_data, team_name, team_color):
         # Get player shirt numbers
         player1 = int(row["pair_key"].split("_")[0])
         player2 = int(row['pair_key'].split("_")[1])
+        
         # Take the average location of players to plot a line between them
         player1_x = scatter_df.loc[scatter_df["playerShirtNumber"] == player1]['x'].iloc[0]
         player1_y = scatter_df.loc[scatter_df["playerShirtNumber"] == player1]['y'].iloc[0]
@@ -390,14 +388,14 @@ def plot_stats_comparison(ax, metrics_df, team1_name, team2_name, team1_color, t
 
     # Define which stats to display and their labels
     stats_to_plot = [
-        ('possession', 'Ball possession'),
+        ('possession', 'Possession'),
         ('field_tilt', 'Field tilt'),
         ('xG', 'Expected goals'),
         ('total_shots', 'Total shots'),
         ('on_target_shots', 'On target shots'),
         ('ppda', 'Passes allowed per defensive action'),
         ('final_third_entries', 'Final third entries'),
-        ('box_touches', 'Box touches'),
+        ('box_touches', 'Touches in opposition box'),
         ('progressive_passes', 'Progressive passes')
     ]
     
@@ -479,3 +477,48 @@ def plot_stats_comparison(ax, metrics_df, team1_name, team2_name, team1_color, t
         ax.set_xlim(-0.05, 1.05)
         ax.set_ylim(-0.5, len(stats_to_plot) - 0.5)
 
+def plot_shots(ax, events_df, team_name, team_color):
+    """
+    Plot the shots.
+    """
+    # Turn off axis
+    ax.axis('off')
+
+    # Get team colors from styling
+    color = styling.colors[team_color]
+
+    # Create pitch
+    pitch = VerticalPitch(
+        pitch_type=styling.pitch['pitch_type'],
+        pitch_length=styling.pitch['pitch_length'],
+        pitch_width=styling.pitch['pitch_width'],
+        line_color=styling.pitch['line_color'], 
+        linewidth=styling.pitch['linewidth'], 
+        goal_type=styling.pitch['goal_type'], 
+        corner_arcs=styling.pitch['corner_arcs'],
+        half=True,
+        pad_bottom=0.1
+    )
+    pitch.draw(ax=ax)
+
+    # Get shots for team
+    team_shots = events_df[
+        (events_df['teamName'] == team_name) &
+        (events_df['baseTypeName'] == 'SHOT')
+    ].copy()
+
+    # Get xG for each shot
+    team_shots["xG"] = team_shots["metrics"].apply(lambda x: x["xG"] if x is not None else 0)
+
+    # Set scatter color based on result
+    filled_color = np.where(team_shots["resultId"] == 1, color, styling.colors['light'])
+
+    pitch.scatter(
+        team_shots["startPosXM"],
+        team_shots["startPosYM"],
+        c=filled_color,
+        s=(team_shots["xG"] * 500) + 20, # Scale to xG
+        edgecolors=color,
+        linewidth=1,
+        ax=ax,
+    )
