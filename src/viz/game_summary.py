@@ -59,7 +59,7 @@ def create_game_summary(events_df, player_data, team1_name, team1_color, team2_n
     })
 
     # Create figure with GridSpec - 3 columns, 3 rows
-    fig = plt.figure(figsize=(24, 18))
+    fig = plt.figure(figsize=(22, 18))
     gs = fig.add_gridspec(7, 3, hspace=0.35, wspace=0.3, 
                   height_ratios=[0.5, 1, 1, 1, 1, 1, 1], width_ratios=[1, 1.2, 1])
 
@@ -90,8 +90,8 @@ def create_game_summary(events_df, player_data, team1_name, team1_color, team2_n
     plot_stats_comparison(stats_comparison_ax, metrics_df, team1_name, team2_name, team1_color, team2_color)
 
     # Plot shots
-    plot_shots(team1_shot_map_ax, events_df, team1_name, team1_color)
-    plot_shots(team2_shot_map_ax, events_df, team2_name, team2_color)
+    plot_shots(team1_shot_map_ax, events_df, metrics_df, team1_name, team1_color)
+    plot_shots(team2_shot_map_ax, events_df, metrics_df, team2_name, team2_color)
 
     # Save plot
     current_file = Path(__file__).resolve()
@@ -390,9 +390,8 @@ def plot_stats_comparison(ax, metrics_df, team1_name, team2_name, team1_color, t
     stats_to_plot = [
         ('possession', 'Possession'),
         ('field_tilt', 'Field tilt'),
-        ('xG', 'Expected goals'),
-        ('total_shots', 'Total shots'),
-        ('on_target_shots', 'On target shots'),
+        # ('total_shots', 'Total shots'),
+        # ('on_target_shots', 'On target shots'),
         ('ppda', 'Passes allowed per defensive action'),
         ('final_third_entries', 'Final third entries'),
         ('box_touches', 'Touches in opposition box'),
@@ -403,11 +402,12 @@ def plot_stats_comparison(ax, metrics_df, team1_name, team2_name, team1_color, t
     team1_data = metrics_df[metrics_df['team'] == team1_name].iloc[0]
     team2_data = metrics_df[metrics_df['team'] == team2_name].iloc[0]
     
-    bar_height = 0.5
-    scatter_size = 475
+    bar_height = 0.25
+    scatter_size = 600
+    y_spacing = 0.6
     
     for i, (stat, label) in enumerate(stats_to_plot):
-        y_pos = len(stats_to_plot) - 1 - i  # Reverse order to match typical display
+        y_pos = (len(stats_to_plot) - 1 - i) * y_spacing # Reverse order to match typical display
         
         # Get values and normalize
         val1 = team1_data[stat]
@@ -475,9 +475,9 @@ def plot_stats_comparison(ax, metrics_df, team1_name, team2_name, team1_color, t
     
         # Styling
         ax.set_xlim(-0.05, 1.05)
-        ax.set_ylim(-0.5, len(stats_to_plot) - 0.5)
+        ax.set_ylim(-0.5, (len(stats_to_plot) - 1) * y_spacing + 0.5)
 
-def plot_shots(ax, events_df, team_name, team_color):
+def plot_shots(ax, events_df, metrics_df, team_name, team_color):
     """
     Plot the shots.
     """
@@ -513,6 +513,7 @@ def plot_shots(ax, events_df, team_name, team_color):
     # Set scatter color based on result
     filled_color = np.where(team_shots["resultId"] == 1, color, styling.colors['light'])
 
+    # Plot shots
     pitch.scatter(
         team_shots["startPosXM"],
         team_shots["startPosYM"],
@@ -521,4 +522,15 @@ def plot_shots(ax, events_df, team_name, team_color):
         edgecolors=color,
         linewidth=1,
         ax=ax,
+    )
+
+    # Plot total xG
+    team_data = metrics_df[metrics_df['team'] == team_name].iloc[0]
+    ax.text(0.5, 15,
+        f"{team_data['xG']:.2f} xG",
+        fontsize=styling.typo["sizes"]["h1"],
+        fontproperties=styling.fonts['medium_italic'],
+        color=color,
+        ha='center',
+        va='center',
     )

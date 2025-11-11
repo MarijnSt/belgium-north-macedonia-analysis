@@ -41,6 +41,11 @@ def calculate_dominance_metrics(events_df: pd.DataFrame, team1_name: str, team2_
         team1_metrics['field_tilt'] = round(field_tilt['team1_field_tilt'], 2)
         team2_metrics['field_tilt'] = round(field_tilt['team2_field_tilt'], 2)
 
+        # Successful passes
+        successful_passes = calculate_successful_passes(events_df, team1_name, team2_name)
+        team1_metrics['successful_passes'] = successful_passes['team1_successful_passes']
+        team2_metrics['successful_passes'] = successful_passes['team2_successful_passes']
+
         # Final third entries
         final_third_entries = calculate_final_third_entries(events_df, team1_name, team2_name)
         team1_metrics['final_third_entries'] = final_third_entries['team1_final_third_entries']
@@ -86,6 +91,46 @@ def calculate_dominance_metrics(events_df: pd.DataFrame, team1_name: str, team2_
     except Exception as e:
         logger.error(f"Error calculating dominance metrics: {e}")
         raise e
+
+def calculate_successful_passes(events_df: pd.DataFrame, team1_name: str, team2_name: str) -> float:
+    """
+    Calculate successful passes for a team.
+
+    Parameters:
+    -----------
+    events_df: pd.DataFrame
+        The events dataframe of the game.
+    team1_name: str
+        The name of the first team.
+    team2_name: str
+        The name of the second team.
+
+    Returns:
+    --------
+    int
+        The number of successful passes for the teams.
+    """
+    try:
+        # Get passes
+        passes = events_df[
+            (events_df["baseTypeName"] == "PASS") &
+            (events_df["resultName"] == "SUCCESSFUL")
+        ]
+
+        # Count passes
+        team1_passes = len(passes[passes["teamName"] == team1_name])
+        team2_passes = len(passes[passes["teamName"] == team2_name])
+
+        logger.debug(f"Successful passes for {team1_name}: {team1_passes}")
+        logger.debug(f"Successful passes for {team2_name}: {team2_passes}")
+
+        return {
+            "team1_successful_passes": team1_passes,
+            "team2_successful_passes": team2_passes,
+        }
+
+    except Exception as e:
+        logger.error(f"Error calculating passes: {e}")
 
 def calculate_possession(events_df: pd.DataFrame, team1_name: str, team2_name: str) -> float:
     """

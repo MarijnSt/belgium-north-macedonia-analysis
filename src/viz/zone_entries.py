@@ -171,7 +171,7 @@ def plot_zone_entries(ax, final_third_entries_df, zone_entry_stats):
             'center': center_color,
             'right': right_color,
         }),
-        s=25,
+        s=50,
         edgecolors=None,
         ax=ax,
         zorder=0,
