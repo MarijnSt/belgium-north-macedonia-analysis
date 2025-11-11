@@ -40,6 +40,7 @@ def calculate_entry_zone_stats(
         # Analyze what happened after the entry
         entries_df['outcome'] = entries_df.apply(
             lambda row: analyze_sequence_outcome(
+                team_name,
                 events_df, 
                 row["sequenceId"],
                 row["eventId"],
@@ -87,12 +88,14 @@ def classify_entry_zone(x, y):
     else:
         return "center"
 
-def analyze_sequence_outcome(events_df, sequence_id, entry_event_id, entry_timestamp, time_window=15000):
+def analyze_sequence_outcome(team_name, events_df, sequence_id, entry_event_id, entry_timestamp, time_window=15000):
     """
     Analyze the outcome of a sequence after the entry event
     
     Parameters:
     -----------
+    team_name: str
+        The name of the team.
     events_df: pd.DataFrame
         The events dataframe of the game.
     sequence_id: int
@@ -160,6 +163,11 @@ def analyze_sequence_outcome(events_df, sequence_id, entry_event_id, entry_times
 
         # Loop through next events and check for other outcomes
         for _, event in next_events.iterrows():
+            # Check for turnovers first (ends the loop)
+            if event['baseTypeName'] in ['INTERCEPTION', 'CLEARANCE'] and event['teamName'] != team_name:
+                outcome['turnover'] = True
+                break
+
             # Check for box entries
             if is_box_entry(event):
                 box_entries_found.append(event["eventId"])
@@ -173,14 +181,6 @@ def analyze_sequence_outcome(events_df, sequence_id, entry_event_id, entry_times
                     "xG": shot_xg,
                     "goal": is_goal
                 })
-            # elif event['event_type'] in ['interception', 'tackle']:
-            #     outcome['turnover'] = True
-            #     outcome['end_reason'] = 'turnover'
-            #     break
-            # elif event['event_type'] == 'foul':
-            #     outcome['foul_won'] = True
-            #     outcome['end_reason'] = 'foul_won'
-            #     break
         
         # Aggregate box entry information
         if len(box_entries_found) > 0:
@@ -194,17 +194,6 @@ def analyze_sequence_outcome(events_df, sequence_id, entry_event_id, entry_times
             outcome["total_xg"] = sum([shot["xG"] for shot in shots_found])
             outcome["goal"] = any([shot["goal"] for shot in shots_found])
             outcome["goal_count"] = sum([shot["goal"] for shot in shots_found])
-
-        # # Check of er een event van andere team is (= balverlies)
-        # opponent_event = events_df[
-        #     (events_df.index > entry_idx) &
-        #     (events_df['timestamp'] <= timestamp + 15) &
-        #     (events_df['team_id'] != team_id)
-        # ].head(1)
-        
-        # if len(opponent_event) > 0 and not outcome['shot']:
-        #     outcome['turnover'] = True
-        #     outcome['end_reason'] = 'lost_possession'
         
         return outcome
     

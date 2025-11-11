@@ -44,10 +44,6 @@ def get_final_third_entries(events_df):
             "startPosYM",
             "endPosYM",
             "sequenceId",
-            "sequenceStart",
-            "sequenceEnd",
-            "possessionTypeName",
-            "xA",
         ]
 
         return final_third_entries[columns]
