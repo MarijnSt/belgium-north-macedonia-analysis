@@ -331,6 +331,11 @@ def plot_territorial_heatmap(ax, events_df, team1_name, team2_name, team1_color,
         corner_arcs=styling.pitch['corner_arcs'],
     )
     pitch.draw(ax=ax)
+
+    # Manually reposition the axes to move pitch up and create space below
+    pos = ax.get_position()  # Get current position [left, bottom, width, height]
+    # Move the axes up by reducing bottom and decreasing height
+    ax.set_position([pos.x0, pos.y0 + 0.015, pos.width, pos.height])
     
     # Filter events with location data
     df_team1, df_team2 = get_territorial_heatmap_data(events_df, team1_name, team2_name)
@@ -393,7 +398,7 @@ def plot_territorial_heatmap(ax, events_df, team1_name, team2_name, team1_color,
         interpolation='bilinear' 
     )
 
-    ax.text(0, -37.5, 
+    ax.text(0, -42.5, 
         f"Territorial Heatmap: {team1_name} attacking from left to right", 
         fontsize=styling.typo["sizes"]["p"], 
         color=styling.colors["primary"], 
