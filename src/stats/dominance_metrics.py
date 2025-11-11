@@ -3,6 +3,8 @@ import numpy as np
 from typing import Dict, Tuple, List
 import logging
 
+from transform import get_final_third_entries
+
 # Get logger (initialized in source file)
 logger = logging.getLogger(__name__)
 
@@ -196,11 +198,8 @@ def calculate_final_third_entries(events_df: pd.DataFrame, team1_name: str, team
         The final third entries for the teams.
     """
     try:
-        # Get passes in final third
-        final_third_entries_df = events_df[
-            (events_df["startPosXM"] < 17.5) &
-            (events_df["endPosXM"] >= 17.5)
-        ]
+        # Get final third entries
+        final_third_entries_df = get_final_third_entries(events_df)
 
         logger.debug(f"Final third entries: {len(final_third_entries_df)}")
 
