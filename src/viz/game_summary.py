@@ -520,28 +520,51 @@ def plot_shots(ax, events_df, metrics_df, team_name, team_color):
     )
     pitch.draw(ax=ax)
 
+    # Manually reposition the axes to move pitch up and create space below
+    pos = ax.get_position()  # Get current position [left, bottom, width, height]
+    # Move the axes up by reducing bottom and decreasing height
+    ax.set_position([pos.x0, pos.y0 + 0.025, pos.width, pos.height])
+
     # Get shots for team
     team_shots = events_df[
         (events_df['teamName'] == team_name) &
-        (events_df['baseTypeName'] == 'SHOT')
+        (events_df['baseTypeName'] == 'SHOT') &
+        (events_df['resultId'] != 1)
+    ].copy()
+
+    # Get goals for team
+    team_goals = events_df[
+        (events_df['teamName'] == team_name) &
+        (events_df['baseTypeName'] == 'SHOT') &
+        (events_df['resultId'] == 1)
     ].copy()
 
     # Get xG for each shot
     team_shots["xG"] = team_shots["metrics"].apply(lambda x: x["xG"] if x is not None else 0)
 
-    # Set scatter color based on result
-    filled_color = np.where(team_shots["resultId"] == 1, color, styling.colors['light'])
-
     # Plot shots
     pitch.scatter(
         team_shots["startPosXM"],
         team_shots["startPosYM"],
-        c=filled_color,
-        s=(team_shots["xG"] * 500) + 20, # Scale to xG
+        c=styling.colors['light'],
+        s=(team_shots["xG"] * 700) + 100, # Scale to xG
         edgecolors=color,
         linewidth=1,
         ax=ax,
     )
+
+    # Plot goals
+    if len(team_goals) > 0:
+        team_goals["xG"] = team_goals["metrics"].apply(lambda x: x["xG"] if x is not None else 0)
+        pitch.scatter(
+            team_goals["startPosXM"],
+            team_goals["startPosYM"],
+            c=color,
+            s=(team_goals["xG"] * 700) + 100, # Scale to xG
+            edgecolors=color,
+            linewidth=1,
+            ax=ax,
+        )
 
     # Plot total xG
     team_data = metrics_df[metrics_df['team'] == team_name].iloc[0]
@@ -553,3 +576,28 @@ def plot_shots(ax, events_df, metrics_df, team_name, team_color):
         ha='center',
         va='center',
     )
+
+    # Plot shot counts
+    shot_metrics = [
+        ("total_shots", "shots", 25),
+        ("on_target_shots", "On target", 0),
+        ("blocked_shots", "blocked", -25)
+    ]
+
+    for name, label, x_pos in shot_metrics:
+        ax.text(x_pos, -8,
+            f"{team_data[name]}",
+            fontsize=styling.typo["sizes"]["h2"],
+            fontproperties=styling.fonts['medium_italic'],
+            color=color,
+            ha='center',
+            va='center',
+        )
+        ax.text(x_pos, -13,
+            f"{label}",
+            fontsize=styling.typo["sizes"]["p"],
+            fontproperties=styling.fonts['medium_italic'],
+            color=color,
+            ha='center',
+            va='center',
+        )
