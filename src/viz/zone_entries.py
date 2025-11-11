@@ -266,11 +266,11 @@ def plot_zone_entry_stats(ax, zone_entry_stats):
     
     # Metrics configuration: (column_name, display_label, y_position, format_string)
     metrics = [
-        ('shot_rate', 'Shot rate', 1.1, '{:.2f}%'),
+        ('shot_rate', 'Shot rate', 1.1, '{:.1f}%'),
         ('xg_per_entry', 'xG per entry', 0.8, '{:.3f}'),
-        ('box_entry_rate', 'Box entry rate', 0.5, '{:.2f}%'),
-        ('recycle_rate', 'Recycle rate', 0.2, '{:.2f}%'),
-        ('turnover_rate', 'Turnover rate', -0.1, '{:.2f}%'),
+        ('box_entry_rate', 'Box entry rate', 0.5, '{:.1f}%'),
+        ('recycle_rate', 'Recycle rate', 0.2, '{:.1f}%'),
+        ('turnover_rate', 'Turnover rate', -0.1, '{:.1f}%'),
     ]
     
     # Opacity settings

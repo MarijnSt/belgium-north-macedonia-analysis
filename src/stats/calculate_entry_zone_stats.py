@@ -35,10 +35,10 @@ def calculate_entry_zone_stats(entries_df):
     })
     
     # Calculate rates (based on entries, not counts)
-    summary['shot_rate'] = summary['entries_with_shot'] / summary['total_entries']
-    summary['box_entry_rate'] = summary['entries_with_box_entry'] / summary['total_entries']
-    summary['turnover_rate'] = summary['total_turnovers'] / summary['total_entries']
-    summary['recycle_rate'] = summary['total_recycles'] / summary['total_entries']
+    summary['shot_rate'] = (summary['entries_with_shot'] / summary['total_entries'])*100
+    summary['box_entry_rate'] = (summary['entries_with_box_entry'] / summary['total_entries'])*100
+    summary['turnover_rate'] = (summary['total_turnovers'] / summary['total_entries'])*100
+    summary['recycle_rate'] = (summary['total_recycles'] / summary['total_entries'])*100
     
     # Calculate xG metrics
     summary['xg_per_entry'] = summary['total_xg'] / summary['total_entries']
