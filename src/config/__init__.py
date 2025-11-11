@@ -2,8 +2,10 @@
 
 from .logging import setup_logging
 from .styling import styling
+from .config import PitchZones
 
 __all__ = [
-    'setup_logging',
-    'styling'
+    "setup_logging",
+    "styling",
+    "PitchZones"
 ]

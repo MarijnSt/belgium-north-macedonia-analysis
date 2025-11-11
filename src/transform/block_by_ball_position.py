@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 from scipy.spatial import ConvexHull
 
+from config import PitchZones
+
 logger = logging.getLogger(__name__)
 
 def analyze_block_by_ball_position(
@@ -22,18 +24,8 @@ def analyze_block_by_ball_position(
             logger.error("No tracking dataframe provided")
             raise ValueError("No tracking dataframe provided")
 
-        # Init zones - FIXED: corrected y-coordinates for center zones
-        zones = {
-            # Middle third: progression zone
-            'left_progression': {'x': [-17.5, 17.5], 'y': [12, 36]},
-            'center_progression': {'x': [-17.5, 17.5], 'y': [-12, 12]},  # FIXED
-            'right_progression': {'x': [-17.5, 17.5], 'y': [-36, -12]},
-            
-            # Final third
-            'left_final_third': {'x': [17.5, 52.5], 'y': [12, 36]},
-            'center_final_third': {'x': [17.5, 52.5], 'y': [-12, 12]},  # FIXED
-            'right_final_third': {'x': [17.5, 52.5], 'y': [-36, -12]},
-        }
+        # Init zones
+        zones = PitchZones.get_zones()
 
         # Sample frames (speed up analysis)
         sampled_frames = possession_frame_ids[::10]
@@ -70,7 +62,7 @@ def analyze_block_by_ball_position(
         # Init results
         results = {zone_name: {
             'positions': [],
-            'compactness_metrics': [],
+            'block_metrics': [],
             'frame_count': 0
         } for zone_name in list(zones.keys()) + ['build_up_zone']}
         
@@ -91,16 +83,22 @@ def analyze_block_by_ball_position(
             
             if len(defenders) < 3:
                 continue
+
+            # Exclude goalkeeper from metrics calculation
+            outfield_defenders = defenders[defenders['shirt_number'] != 23] # TODO: Make this dynamic (get goalkeeper shirt number from player data)
+
+            if len(outfield_defenders) < 3:
+                continue
             
             # Calculate metrics
-            compactness = calculate_team_compactness(defenders)
+            block_metrics = calculate_block_metrics(outfield_defenders)
             
-            if compactness is None:
+            if block_metrics is None:
                 continue
             
             # Save to zone results
             results[zone]['frame_count'] += 1
-            results[zone]['compactness_metrics'].append(compactness)
+            results[zone]['block_metrics'].append(block_metrics)
             
             # OPTIMIZATION 5 + FIX: Save positions with player identifier (shirt_number)
             # Use vectorized operations instead of iterrows
@@ -127,7 +125,7 @@ def analyze_block_by_ball_position(
             avg_positions = positions_df.groupby('shirt_number')[['x', 'y']].mean()
             
             # Average compactness metrics
-            metrics_df = pd.DataFrame(data['compactness_metrics'])
+            metrics_df = pd.DataFrame(data['block_metrics'])
             avg_metrics = metrics_df.mean().to_dict()
             
             summary[zone_name] = {
@@ -177,7 +175,7 @@ def get_ball_zone(ball_x: float, ball_y: float, zones: dict) -> str:
         logger.error(f"Error getting ball zone: {e}")
         raise e
 
-def calculate_team_compactness(team_df: pd.DataFrame) -> dict:
+def calculate_block_metrics(team_df: pd.DataFrame) -> dict:
     """Calculate the compactness metrics for a team at a given moment."""
     try:
         if len(team_df) < 3:

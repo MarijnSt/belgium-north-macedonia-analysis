@@ -102,7 +102,9 @@ def create_game_summary(events_df, player_data, team1_name, team1_color, team2_n
         'facecolor': styling.colors['light'],
         'dpi': 300
     }
-    output_path = project_root / 'outputs' / 'game_summary' / f'{team1_name}-{team2_name}-{datetime.now().strftime("%Y-%m-%d %H:%M")}.png'
+    team1_name = team1_name.lower().replace(' ', '-')
+    team2_name = team2_name.lower().replace(' ', '-')
+    output_path = project_root / 'outputs' / 'game_summary' / f'{team1_name}-{team2_name}-{datetime.now().strftime("%Y-%m-%d")}.png'
     fig.savefig(output_path, **default_kwargs)
 
     return fig
@@ -167,8 +169,6 @@ def plot_game_info(ax):
     ax.add_artist(ab_belgium_logo)
     
     # North Macedonia logo
-    current_file = Path(__file__).resolve()
-    project_root = current_file.parent.parent.parent
     logo_path = project_root / 'static' / 'mkd-logo.png'
     logo = mpimg.imread(logo_path)
     imagebox = OffsetImage(logo, zoom=0.45)
