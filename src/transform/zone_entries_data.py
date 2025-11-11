@@ -35,7 +35,6 @@ def get_zone_entries_data(
             lambda row: classify_entry_zone(row["endPosXM"], row["endPosYM"]), 
             axis=1
         )
-
         
         # Analyze what happened after the entry
         entries_df['outcome'] = entries_df.apply(
