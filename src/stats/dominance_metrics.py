@@ -61,6 +61,9 @@ def calculate_dominance_metrics(events_df: pd.DataFrame, team1_name: str, team2_
         team1_metrics['progressive_passes'] = prog_passes['team1_prog_passes']
         team2_metrics['progressive_passes'] = prog_passes['team2_prog_passes']
 
+        team1_metrics["pp_ratio"] = prog_passes['team1_prog_passes'] / successful_passes['team1_successful_passes']
+        team2_metrics["pp_ratio"] = prog_passes['team2_prog_passes'] / successful_passes['team2_successful_passes']
+
         team1_metrics['pp_outside_final_third'] = prog_passes['team1_prog_passes_outside_final_third']
         team2_metrics['pp_outside_final_third'] = prog_passes['team2_prog_passes_outside_final_third']
 
@@ -330,7 +333,10 @@ def calculate_progressive_passes(events_df: pd.DataFrame, team1_name: str, team2
     """
     try:
         # Filter out passes
-        passes = events_df[events_df["baseTypeName"] == "PASS"].copy()
+        passes = events_df[
+            (events_df["baseTypeName"] == "PASS") &
+            (events_df["resultName"] == "SUCCESSFUL")
+        ].copy()
         passes["progress"] = passes["endPosXM"] - passes["startPosXM"]
 
         # Filter for progressive passes outside the final third

@@ -232,24 +232,31 @@ def plot_passing_network(ax, events_df, player_data, metrics_df, team_name, team
     )
     pitch.draw(ax=ax)
 
-    # Plot total successful passes
+    # Plot passes metrics
     team_data = metrics_df[metrics_df['team'] == team_name].iloc[0]
-    ax.text(0.5, -60,
-        f"{team_data['successful_passes']}",
-        fontsize=styling.typo["sizes"]["h1"],
-        fontproperties=styling.fonts['medium_italic'],
-        color=color,
-        ha='center',
-        va='top',
-    )
-    ax.text(0.5, -68,
-        f"successful passes",
-        fontsize=styling.typo["sizes"]["h4"],
-        fontproperties=styling.fonts['medium_italic'],
-        color=color,
-        ha='center',
-        va='top',
-    )
+    pass_metrics = [
+        (f"{team_data['successful_passes']}", "successful passes", 20),
+        (f"{team_data['pp_ratio']*100:.0f}%", "progressive passes", -20)
+    ]
+
+    for value, label, x_pos in pass_metrics:
+        ax.text(x_pos, -60,
+            f"{value}",
+            fontsize=styling.typo["sizes"]["h2"],
+            fontproperties=styling.fonts['medium_italic'],
+            color=color,
+            ha='center',
+            va='top',
+        )
+        ax.text(x_pos, -68,
+            f"{label}",
+            fontsize=styling.typo["sizes"]["p"],
+            fontproperties=styling.fonts['medium_italic'],
+            color=color,
+            ha='center',
+            va='top',
+        )
+    
 
     # Create scatter and lines data
     scatter_df, lines_df = get_passing_network_data(events_df, player_data, team_name)
