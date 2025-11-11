@@ -1,0 +1,225 @@
+import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
+
+def calculate_entry_zone_stats(
+    final_third_entries_df: pd.DataFrame, 
+    events_df: pd.DataFrame,
+    team_name: str
+) -> pd.DataFrame:
+    """
+    Calculate entry zone stats
+    
+    Parameters:
+    -----------
+    final_third_entries_df: pd.DataFrame
+        The final third entries dataframe.
+    events_df: pd.DataFrame
+        The events dataframe of the game.
+    team_name: str
+        The name of the team.
+    
+    Returns:
+    --------
+    pd.DataFrame
+        The dataframe with the entries per zone and outcomes.
+    """
+    try:
+        # Get final third entries for team
+        entries_df = final_third_entries_df[final_third_entries_df["teamName"] == team_name].copy()
+        logger.info(f"Entries for {team_name}: {len(entries_df)}")
+        
+        # Classify zone
+        entries_df["entry_zone"] = entries_df.apply(
+            lambda row: classify_entry_zone(row["endPosXM"], row["endPosYM"]), 
+            axis=1
+        )
+
+        
+        # Analyze what happened after the entry
+        entries_df['outcome'] = entries_df.apply(
+            lambda row: analyze_sequence_outcome(
+                events_df, 
+                row["sequenceId"],
+                row["eventId"],
+                row["timestamp"]
+            ), 
+            axis=1
+        )
+
+        # Split outcome into separate columns
+        outcome_cols = ['box_entry', 'shot', 'shot_count', 'goal', 'goal_count', 'total_xg', 'turnover', 'recycled']
+        for col in outcome_cols:
+            entries_df[col] = entries_df['outcome'].apply(lambda x: x[col])
+        # entries_df.drop(columns=['outcome'], inplace=True)
+
+        return entries_df
+    except Exception as e:
+        logger.error(f"Error analyzing entry zones: {e}")
+        raise e
+
+def classify_entry_zone(x, y):
+    """
+    Classify final third entry zone
+    
+    Parameters:
+    -----------
+    x: float
+        The x coordinate of the entry.
+    y: float
+        The y coordinate of the entry.
+    
+    Returns:
+    --------
+    str
+        The name of the entry zone.
+    """
+    # Final third starts at x = 17.5
+    if x < 17.5:
+        return None  # No final third
+    
+    # Horizontal: left/center/right
+    if y < -12:
+        return "right"
+    elif y > 12:
+        return "left"
+    else:
+        return "center"
+
+def analyze_sequence_outcome(events_df, sequence_id, entry_event_id, entry_timestamp, time_window=15000):
+    """
+    Analyze the outcome of a sequence after the entry event
+    
+    Parameters:
+    -----------
+    events_df: pd.DataFrame
+        The events dataframe of the game.
+    sequence_id: int
+        The id of the sequence.
+    entry_event_id: int
+        The id of the entry event.
+    entry_timestamp: int
+        The timestamp of the entry event.
+    time_window: int
+        The time window in milliseconds to look forward.
+    
+    Returns:
+    --------
+    outcome: dict
+        The outcome of the sequence.
+        - box_entry: bool
+        - shot: bool
+        - shot_count: int
+        - goal: bool
+        - goal_count: int
+        - total_xg: float
+        - turnover: bool
+        - recycled: bool
+    """
+    try:
+        # Init outcome object
+        outcome = {
+            "box_entry": False,
+            "shot": False,
+            "shot_count": 0,
+            "goal": False,
+            "goal_count": 0,
+            "total_xg": 0,
+            "turnover": False,
+            "recycled": False,
+        }
+
+        # Get events in the time window after the entry event
+        next_events = events_df[
+            (events_df["sequenceId"] == sequence_id) &
+            (events_df["timestamp"] >= entry_timestamp) &
+            (events_df["timestamp"] <= entry_timestamp + time_window)
+        ].sort_values(by="timestamp")
+
+        # Check if there's another entry event in the time window
+        another_entry = next_events[
+            (next_events["eventId"] != entry_event_id) &
+            (next_events["startPosXM"] < 17.5) &
+            (next_events["endPosXM"] >= 17.5)
+        ]
+
+        # If there's another entry in the time window:
+        # - Set recycled to True
+        # - Adapt next events to only include events before the recycled entry
+        if len(another_entry) > 0:
+            outcome["recycled"] = True
+            recycled_entry = another_entry.iloc[0]
+            recycled_entry_timestamp = recycled_entry["timestamp"]
+            next_events = next_events[next_events["timestamp"] < recycled_entry_timestamp]
+
+        # Loop through next events and check for other outcomes
+        shots_found = []
+        for _, event in next_events.iterrows():
+            if event['baseTypeName'] == 'SHOT':
+                shot_xg = event["metrics"]["xG"]
+                is_goal = event["resultId"] == 1
+                
+                shots_found.append({
+                    "xG": shot_xg,
+                    "goal": is_goal
+                })
+            # elif event['event_type'] in ['interception', 'tackle']:
+            #     outcome['turnover'] = True
+            #     outcome['end_reason'] = 'turnover'
+            #     break
+            # elif event['event_type'] == 'foul':
+            #     outcome['foul_won'] = True
+            #     outcome['end_reason'] = 'foul_won'
+            #     break
+        
+        # Aggregate shot information
+        if len(shots_found) > 0:
+            outcome["shot"] = True
+            outcome["shot_count"] = len(shots_found)
+            outcome["total_xg"] = sum([shot["xG"] for shot in shots_found])
+            outcome["goal"] = any([shot["goal"] for shot in shots_found])
+            outcome["goal_count"] = sum([shot["goal"] for shot in shots_found])
+
+        # # Check of er een event van andere team is (= balverlies)
+        # opponent_event = events_df[
+        #     (events_df.index > entry_idx) &
+        #     (events_df['timestamp'] <= timestamp + 15) &
+        #     (events_df['team_id'] != team_id)
+        # ].head(1)
+        
+        # if len(opponent_event) > 0 and not outcome['shot']:
+        #     outcome['turnover'] = True
+        #     outcome['end_reason'] = 'lost_possession'
+        
+        return outcome
+    
+    except Exception as e:
+        logger.error(f"Error analyzing sequence outcome: {e}")
+        raise e
+
+def summarize_entries_by_zone(entries_df):
+    """
+    Maak samenvatting per zone
+    """
+    
+    summary = entries_df.groupby('entry_zone').agg({
+        'event_id': 'count',  # aantal entries
+        'outcome': lambda x: sum([o['shot'] for o in x]),  # aantal shots
+    }).rename(columns={'event_id': 'entries', 'outcome': 'shots'})
+    
+    # xG per zone
+    summary['total_xG'] = entries_df.groupby('entry_zone')['outcome'].apply(
+        lambda x: sum([o['xG'] for o in x])
+    )
+    
+    summary['xG_per_entry'] = summary['total_xG'] / summary['entries']
+    summary['shot_rate'] = summary['shots'] / summary['entries']
+    
+    # Turnovers
+    summary['turnovers'] = entries_df.groupby('entry_zone')['outcome'].apply(
+        lambda x: sum([o['turnover'] for o in x])
+    )
+    summary['turnover_rate'] = summary['turnovers'] / summary['entries']
+    
+    return summary
