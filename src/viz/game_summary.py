@@ -80,8 +80,8 @@ def create_game_summary(events_df, player_data, team1_name, team1_color, team2_n
     plot_game_info(game_info_ax)
 
     # Plot passing network
-    plot_passing_network(team1_passing_network_ax, events_df, player_data, team1_name, team1_color)
-    plot_passing_network(team2_passing_network_ax, events_df, player_data, team2_name, team2_color)
+    plot_passing_network(team1_passing_network_ax, events_df, player_data, metrics_df, team1_name, team1_color)
+    plot_passing_network(team2_passing_network_ax, events_df, player_data, metrics_df, team2_name, team2_color)
 
     # Plot territorial heatmap
     plot_territorial_heatmap(territorial_heatmap_ax, events_df, team1_name, team2_name, team1_color, team2_color)
@@ -211,7 +211,7 @@ def plot_game_info(ax):
         va="top",
     )
 
-def plot_passing_network(ax, events_df, player_data, team_name, team_color):
+def plot_passing_network(ax, events_df, player_data, metrics_df, team_name, team_color):
     """
     Plot the passing network.
     """
@@ -231,6 +231,25 @@ def plot_passing_network(ax, events_df, player_data, team_name, team_color):
         corner_arcs=styling.pitch['corner_arcs'],
     )
     pitch.draw(ax=ax)
+
+    # Plot total successful passes
+    team_data = metrics_df[metrics_df['team'] == team_name].iloc[0]
+    ax.text(0.5, -60,
+        f"{team_data['successful_passes']}",
+        fontsize=styling.typo["sizes"]["h1"],
+        fontproperties=styling.fonts['medium_italic'],
+        color=color,
+        ha='center',
+        va='top',
+    )
+    ax.text(0.5, -68,
+        f"successful passes",
+        fontsize=styling.typo["sizes"]["h4"],
+        fontproperties=styling.fonts['medium_italic'],
+        color=color,
+        ha='center',
+        va='top',
+    )
 
     # Create scatter and lines data
     scatter_df, lines_df = get_passing_network_data(events_df, player_data, team_name)
