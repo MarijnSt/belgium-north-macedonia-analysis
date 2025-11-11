@@ -49,7 +49,7 @@ def calculate_entry_zone_stats(
         )
 
         # Split outcome into separate columns
-        outcome_cols = ['box_entry', 'shot', 'shot_count', 'goal', 'goal_count', 'total_xg', 'turnover', 'recycled']
+        outcome_cols = ['box_entry', 'box_entry_count', 'shot', 'shot_count', 'goal', 'goal_count', 'total_xg', 'turnover', 'recycled']
         for col in outcome_cols:
             entries_df[col] = entries_df['outcome'].apply(lambda x: x[col])
         # entries_df.drop(columns=['outcome'], inplace=True)
@@ -121,6 +121,7 @@ def analyze_sequence_outcome(events_df, sequence_id, entry_event_id, entry_times
         # Init outcome object
         outcome = {
             "box_entry": False,
+            "box_entry_count": 0,
             "shot": False,
             "shot_count": 0,
             "goal": False,
@@ -153,9 +154,17 @@ def analyze_sequence_outcome(events_df, sequence_id, entry_event_id, entry_times
             recycled_entry_timestamp = recycled_entry["timestamp"]
             next_events = next_events[next_events["timestamp"] < recycled_entry_timestamp]
 
-        # Loop through next events and check for other outcomes
+        # Init list for counting certain events
+        box_entries_found = []
         shots_found = []
+
+        # Loop through next events and check for other outcomes
         for _, event in next_events.iterrows():
+            # Check for box entries
+            if is_box_entry(event):
+                box_entries_found.append(event["eventId"])
+
+            # Check for shots
             if event['baseTypeName'] == 'SHOT':
                 shot_xg = event["metrics"]["xG"]
                 is_goal = event["resultId"] == 1
@@ -173,6 +182,11 @@ def analyze_sequence_outcome(events_df, sequence_id, entry_event_id, entry_times
             #     outcome['end_reason'] = 'foul_won'
             #     break
         
+        # Aggregate box entry information
+        if len(box_entries_found) > 0:
+            outcome['box_entry'] = True
+            outcome['box_entry_count'] = len(box_entries_found)
+
         # Aggregate shot information
         if len(shots_found) > 0:
             outcome["shot"] = True
@@ -197,6 +211,46 @@ def analyze_sequence_outcome(events_df, sequence_id, entry_event_id, entry_times
     except Exception as e:
         logger.error(f"Error analyzing sequence outcome: {e}")
         raise e
+
+def is_box_entry(event):
+    """
+    Check if an event represents a box entry
+    A box entry is when the ball goes from outside to inside the penalty box
+    
+    Box coordinates:
+    - X: 36 <= X <= 52.5 (16.5m deep box)
+    - Y: -20.16 <= Y <= 20.16 (40.32m wide box)
+
+    Parameters:
+    -----------
+    event: Series
+        The event to check.
+    
+    Returns:
+    --------
+    bool
+        True if the event represents a box entry, False otherwise.
+    """
+    # Get start and end positions
+    start_x = event["startPosXM"]
+    start_y = event["startPosYM"]
+    end_x = event["endPosXM"]
+    end_y = event["endPosYM"]
+    
+    # Check if started inside the box
+    started_inside = (
+        36 <= start_x <= 52.5 and 
+        -20.16 <= start_y <= 20.16
+    )
+    
+    # Check if ended inside the box
+    ended_inside = (
+        36 <= end_x <= 52.5 and 
+        -20.16 <= end_y <= 20.16
+    )
+    
+    # Box entry: started outside, ended inside
+    return (not started_inside) and ended_inside
 
 def summarize_entries_by_zone(entries_df):
     """
