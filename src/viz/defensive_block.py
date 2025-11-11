@@ -90,8 +90,6 @@ def plot_defensive_blocks(block_analysis: dict, defending_team_name: str, attack
         fig.savefig(output_path, **default_kwargs)
 
         return fig
-
-        # return fig
     
     except Exception as e:
         logger.error(f"Error plotting defensive blocks: {e}")

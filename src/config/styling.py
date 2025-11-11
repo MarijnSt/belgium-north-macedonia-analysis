@@ -48,6 +48,9 @@ class StylingConfig:
         "light": "#f2f4ee",
         "mkd_color": "#DC851F",
         "bel_color": "#C33C54",
+        "left_zone": "#0B6E4F",
+        "center_zone": "#C33C54",
+        "right_zone": "#067BC2",
     }
 
     # Alpha
