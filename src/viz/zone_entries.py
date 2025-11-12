@@ -67,6 +67,9 @@ def plot_final_third_entries(final_third_entries_df: pd.DataFrame, zone_entry_st
         # Plot zone entry stats
         plot_zone_entry_stats(zone_entry_stats_ax, zone_entry_stats)
 
+        # # Plot legend bars
+        # plot_legend_bars(zone_entry_stats_ax, zone_entry_stats)
+
         # Save plot
         current_file = Path(__file__).resolve()
         project_root = current_file.parent.parent.parent
@@ -162,6 +165,26 @@ def plot_zone_entries(ax, final_third_entries_df, zone_entry_stats):
     center_color = styling.colors['center_zone']
     right_color = styling.colors['right_zone']
 
+    # Plot zone boundaries
+    pitch.plot(
+        [0, 52.5], [12, 12],
+        color=styling.colors["primary"],
+        linewidth=1,
+        linestyle=":",
+        ax=ax,
+        zorder=1,
+        alpha=0.5,
+    )
+    pitch.plot(
+        [0, 52.5], [-12, -12],
+        color=styling.colors["primary"],
+        linewidth=1,
+        linestyle=":",
+        ax=ax,
+        zorder=1,
+        alpha=0.5,
+    )
+
     # Plot zone entries
     pitch.scatter(
         final_third_entries_df['endPosXM'],
@@ -183,65 +206,32 @@ def plot_zone_entries(ax, final_third_entries_df, zone_entry_stats):
     center_total = zone_entry_stats[zone_entry_stats['entry_zone'] == 'center']['total_entries'].values[0]
     right_total = zone_entry_stats[zone_entry_stats['entry_zone'] == 'right']['total_entries'].values[0]
 
-    # Left total
-    ax.text(
-        22.5, 8,
-        f"{left_total}",
-        fontsize=styling.typo["sizes"]["h2"],
-        fontproperties=styling.fonts['medium_italic'],
-        color=left_color,
-        ha='center',
-        va='bottom',
-    )
-    ax.text(
-        22.5, 6,
-        f"entries",
-        fontsize=styling.typo["sizes"]["p"],
-        fontproperties=styling.fonts['medium_italic'],
-        color=left_color,
-        ha='center',
-        va='bottom',
-    )
-    
-    # Center total
-    ax.text(
-        0, 8,
-        f"{center_total}",
-        fontsize=styling.typo["sizes"]["h2"],
-        fontproperties=styling.fonts['medium_italic'],
-        color=center_color,
-        ha='center',
-        va='bottom',
-    )
-    ax.text(
-        0, 6,
-        f"entries",
-        fontsize=styling.typo["sizes"]["p"],
-        fontproperties=styling.fonts['medium_italic'],
-        color=center_color,
-        ha='center',
-        va='bottom',
-    )
-    
-    # Right total
-    ax.text(
-        -22.5, 8,
-        f"{right_total}",
-        fontsize=styling.typo["sizes"]["h2"],
-        fontproperties=styling.fonts['medium_italic'],
-        color=right_color,
-        ha='center',
-        va='bottom',
-    )
-    ax.text(
-        -22.5, 6,
-        f"entries",
-        fontsize=styling.typo["sizes"]["p"],
-        fontproperties=styling.fonts['medium_italic'],
-        color=right_color,
-        ha='center',
-        va='bottom',
-    )
+    # Plot entries
+    metrics = [
+        (left_total, left_color, 22.5),
+        (center_total, center_color, 0),
+        (right_total, right_color, -22.5),
+    ]
+
+    for total, color, x_pos in metrics:
+        ax.text(
+            x_pos, 8,
+            f"{total}",
+            fontsize=styling.typo["sizes"]["h2"],
+            fontproperties=styling.fonts['medium_italic'],
+            color=color,
+            ha='center',
+            va='bottom',
+        )
+        ax.text(
+            x_pos, 6,
+            f"entries",
+            fontsize=styling.typo["sizes"]["p"],
+            fontproperties=styling.fonts['medium_italic'],
+            color=color,
+            ha='center',
+            va='bottom',
+        )
 
 def plot_zone_entry_stats(ax, zone_entry_stats):
     """
@@ -313,4 +303,115 @@ def plot_zone_entry_stats(ax, zone_entry_stats):
                 alpha=opacity,
                 ha='center',
                 va='center',
+            )
+
+def plot_legend_bars(ax, zone_entry_stats):
+    """
+    Plot the zone entry stats as vertical bar charts.
+    """
+    # Turn off axis
+    ax.axis('off')
+
+    # Metrics configuration: (column_name, display_label, format_string, is_percentage, color)
+    metrics = [
+        ('shot_rate', 'Shot rate', '{:.1f}%', True, '#FF6B6B'),  # Red
+        ('xg_per_entry', 'xG per entry', '{:.3f}', False, '#4ECDC4'),  # Teal
+        ('box_entry_rate', 'Box entry rate', '{:.1f}%', True, '#95E1D3'),  # Light teal
+        ('recycle_rate', 'Recycle rate', '{:.1f}%', True, '#FFE66D'),  # Yellow
+        ('turnover_rate', 'Turnover rate', '{:.1f}%', True, '#A8E6CF'),  # Light green
+    ]
+    
+    # Bar chart settings
+    bar_width = 0.055
+    bar_spacing = 0.18
+    start_x = 0.14
+    
+    # Opacity settings
+    base_opacity = 0.4
+    max_opacity = 1.0
+    
+    # Zone labels - add these at the top
+    zone_labels = ['Left', 'Center', 'Right']
+    for j, label in enumerate(zone_labels):
+        x_pos = start_x + j * 0.28 + bar_width / 2
+        ax.text(
+            x_pos, 1.12,
+            label,
+            fontsize=9,
+            fontproperties=styling.fonts['medium'],
+            color=styling.colors['primary'],
+            ha='center',
+            va='bottom',
+            transform=ax.transAxes,
+        )
+    
+    # Plot each metric
+    for i, (column_name, label, fmt, is_percentage, color) in enumerate(metrics):
+        y_pos = 1.0 - i * bar_spacing
+        
+        # Add label
+        ax.text(
+            0.08, y_pos,
+            label,
+            fontsize=10,
+            fontproperties=styling.fonts['light'],
+            color=styling.colors['primary'],
+            ha='right',
+            va='center',
+        )
+        
+        # Get values for all zones
+        zone_values = {
+            zone: zone_entry_stats[zone_entry_stats['entry_zone'] == zone][column_name].values[0]
+            for zone in ['left', 'center', 'right']
+        }
+        
+        # Find the zone with the maximum value
+        max_zone = max(zone_values, key=zone_values.get)
+        
+        # For percentage metrics, normalize to 100 for bar height
+        # For non-percentage (xG), we'll scale differently
+        if is_percentage:
+            max_val_for_scaling = 100
+        else:
+            max_val_for_scaling = max(zone_values.values()) * 25  # Scale xG to be visible
+        
+        # Add bars for each zone
+        zones = ['left', 'center', 'right']
+        for j, zone in enumerate(zones):
+            value = zone_values[zone]
+            opacity = max_opacity if zone == max_zone else base_opacity
+            
+            # Calculate bar height (normalized)
+            if is_percentage:
+                bar_height = value / max_val_for_scaling * 0.13  # Scale to visual size
+            else:
+                bar_height = value / max_val_for_scaling * 0.13
+            
+            # Calculate x position for this bar
+            x_pos = start_x + j * 0.28
+            
+            # Draw the bar as a rectangle
+            rect = Rectangle(
+                (x_pos, y_pos - 0.065),  # (x, y) bottom-left corner
+                bar_width,  # width
+                bar_height,  # height
+                facecolor=color,  # Use metric color instead of zone color
+                edgecolor=None,
+                alpha=opacity,
+                transform=ax.transAxes
+            )
+            ax.add_patch(rect)
+            
+            # Add text value inside/on the bar
+            text_y = y_pos - 0.065 + bar_height / 2
+            ax.text(
+                x_pos + bar_width / 2, text_y,
+                fmt.format(value),
+                fontsize=8,
+                fontproperties=styling.fonts['medium'],
+                color='white' if opacity == max_opacity else color,
+                ha='center',
+                va='center',
+                transform=ax.transAxes,
             )
