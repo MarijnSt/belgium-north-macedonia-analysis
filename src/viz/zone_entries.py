@@ -59,7 +59,8 @@ def plot_final_third_entries(final_third_entries_df: pd.DataFrame, zone_entry_st
         zone_entry_stats_ax = fig.add_subplot(gs[2, :])
 
         # Plot heading
-        plot_heading(heading_ax, team_name)
+        count = len(final_third_entries_df)
+        plot_heading(heading_ax, team_name, count)
 
         # Plot zone entries
         plot_zone_entries(zone_entries_ax, final_third_entries_df, zone_entry_stats)
@@ -90,7 +91,7 @@ def plot_final_third_entries(final_third_entries_df: pd.DataFrame, zone_entry_st
         logger.error(f"Error plotting zone entries: {e}")
         raise e
 
-def plot_heading(ax, team_name):
+def plot_heading(ax, team_name, count):
     """
     Plot the heading.
     """
@@ -100,7 +101,7 @@ def plot_heading(ax, team_name):
     # Plot heading
     ax.text(
         0, 0.25,
-        f"How did we attack the low block?", 
+        f"How did we enter the final third?", 
         fontsize=styling.typo["sizes"]["h1"], 
         fontproperties=styling.fonts['medium_italic'], 
         color=styling.colors['primary'], 
@@ -111,7 +112,7 @@ def plot_heading(ax, team_name):
     # Plot subtitle
     ax.text(
         0, -0.3,
-        f"Looking at {team_name}'s final third entries and analyzing the outcome per zone",
+        f"Looking at all {count} final third entries and analyzing the outcome per zone",
         fontsize=styling.typo["sizes"]["p"], 
         fontproperties=styling.fonts['light'], 
         color=styling.colors['primary'], 
