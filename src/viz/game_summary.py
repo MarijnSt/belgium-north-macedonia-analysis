@@ -79,7 +79,11 @@ def create_game_summary(events_df, player_data, team1_name, team1_color, team2_n
     plot_heading(heading_ax, team1_name, team2_name, team1_color, team2_color)
 
     # Plot game info
-    plot_game_info(game_info_ax, team1_name, team2_name, date)
+    goals1 = get_goals(events_df, team1_name)
+    score1 = len(goals1)
+    goals2 = get_goals(events_df, team1_name)
+    score2 = len(goals2)
+    plot_game_info(game_info_ax, team1_name, team2_name, score1, score2, date)
 
     # Plot passing network
     plot_passing_network(team1_passing_network_ax, events_df, player_data, metrics_df, team1_name, team1_color)
@@ -148,7 +152,7 @@ def plot_heading(ax, team1_name, team2_name, team1_color, team2_color):
         va='center',
     )
 
-def plot_game_info(ax, team1_name, team2_name, date):
+def plot_game_info(ax, team1_name, team2_name, score1, score2, date):
     """
     Plot the game info: logos, score, competition and date.
     """
@@ -187,7 +191,7 @@ def plot_game_info(ax, team1_name, team2_name, date):
 
     # Score
     ax.text(0.5, 0.9, 
-        "0 - 0", 
+        f"{score1} - {score2}", 
         fontsize=styling.typo["sizes"]["h0"],
         fontproperties=styling.fonts['bold'],
         color=styling.colors["primary"],
@@ -549,11 +553,7 @@ def plot_shots(ax, events_df, metrics_df, team_name, team_color):
     ].copy()
 
     # Get goals for team
-    team_goals = events_df[
-        (events_df['teamName'] == team_name) &
-        (events_df['baseTypeName'] == 'SHOT') &
-        (events_df['resultId'] == 1)
-    ].copy()
+    team_goals = get_goals(events_df, team_name)
 
     # Get xG for each shot
     team_shots["xG"] = team_shots["metrics"].apply(lambda x: x["xG"] if x is not None else 0)
@@ -617,3 +617,13 @@ def plot_shots(ax, events_df, metrics_df, team_name, team_color):
             ha='center',
             va='center',
         )
+
+def get_goals(events_df, team_name):
+    """
+    Get all goals for a team
+    """
+    return events_df[
+        (events_df['teamName'] == team_name) &
+        (events_df['baseTypeName'] == 'SHOT') &
+        (events_df['resultId'] == 1)
+    ].copy()
