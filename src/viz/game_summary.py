@@ -18,7 +18,7 @@ from transform import get_passing_network_data, get_territorial_heatmap_data
 # Get logger (initialized in source file)
 logger = logging.getLogger(__name__)
 
-def create_game_summary(events_df, player_data, team1_name, team1_color, team2_name, team2_color, metrics_df):
+def create_game_summary(events_df, player_data, team1_name, team1_color, team2_name, team2_color, metrics_df, date):
     """
     Create a comprehensive 3-column game summary.
 
@@ -38,6 +38,8 @@ def create_game_summary(events_df, player_data, team1_name, team1_color, team2_n
         The color name in the styling config of the second team.
     metrics_df: pd.DataFrame
         The metrics dataframe of the game.
+    date: str
+        Date of the game
 
     Returns:
     --------
@@ -77,7 +79,7 @@ def create_game_summary(events_df, player_data, team1_name, team1_color, team2_n
     plot_heading(heading_ax, team1_name, team2_name, team1_color, team2_color)
 
     # Plot game info
-    plot_game_info(game_info_ax)
+    plot_game_info(game_info_ax, team1_name, team2_name, date)
 
     # Plot passing network
     plot_passing_network(team1_passing_network_ax, events_df, player_data, metrics_df, team1_name, team1_color)
@@ -146,40 +148,42 @@ def plot_heading(ax, team1_name, team2_name, team1_color, team2_color):
         va='center',
     )
 
-def plot_game_info(ax):
+def plot_game_info(ax, team1_name, team2_name, date):
     """
     Plot the game info: logos, score, competition and date.
     """
     # Turn off axis
     ax.axis('off')
-
-    # Belgium logo
     current_file = Path(__file__).resolve()
     project_root = current_file.parent.parent.parent
-    logo_path = project_root / 'static' / 'bel-logo.png'
+    file1_name = f"{team1_name.lower().replace(" ", "-")}"
+    file2_name = f"{team2_name.lower().replace(" ", "-")}"
+
+    # Team 1 logo
+    logo_path = f"{project_root}/static/{file1_name}-logo.png"
     logo = mpimg.imread(logo_path)
-    imagebox = OffsetImage(logo, zoom=0.5)
-    ab_belgium_logo = AnnotationBbox(
+    imagebox = OffsetImage(logo, zoom=0.4)
+    ab_team1_logo = AnnotationBbox(
         imagebox, 
         (0.175, 1),                 # location of annotation box
         xycoords='axes fraction',   # use axes fraction coordinates: relative to axes and percentage of axes for position
         box_alignment=(0.5, 1),       # alignment of the annotation box: (1, 0) means right-aligned and bottom-aligned
         frameon=False               # don't show the frame of the annotation box
     )
-    ax.add_artist(ab_belgium_logo)
+    ax.add_artist(ab_team1_logo)
     
-    # North Macedonia logo
-    logo_path = project_root / 'static' / 'mkd-logo.png'
+    # Team 2 logo
+    logo_path = f"{project_root}/static/{file2_name}-logo.png"
     logo = mpimg.imread(logo_path)
-    imagebox = OffsetImage(logo, zoom=0.45)
-    ab_north_macedonia_logo = AnnotationBbox(
+    imagebox = OffsetImage(logo, zoom=0.4)
+    ab_team2_logo = AnnotationBbox(
         imagebox, 
         (0.825, 1),                 # location of annotation box
         xycoords='axes fraction',   # use axes fraction coordinates: relative to axes and percentage of axes for position
         box_alignment=(0.5, 1),       # alignment of the annotation box: (1, 0) means right-aligned and bottom-aligned
         frameon=False               # don't show the frame of the annotation box
     )
-    ax.add_artist(ab_north_macedonia_logo)
+    ax.add_artist(ab_team2_logo)
 
     # Score
     ax.text(0.5, 0.9, 
@@ -203,7 +207,7 @@ def plot_game_info(ax):
 
     # Date
     ax.text(0.5, 0.25, 
-        "10/10/2025", 
+        date, 
         fontsize=styling.typo["sizes"]["p"],
         fontproperties=styling.fonts['medium'],
         color=styling.colors["primary"],
@@ -398,8 +402,9 @@ def plot_territorial_heatmap(ax, events_df, team1_name, team2_name, team1_color,
         interpolation='bilinear' 
     )
 
+    direction = "left to right" if team1_name == "Belgium" else "right to left"
     ax.text(0, -42.5, 
-        f"Territorial Heatmap: {team1_name} attacking from left to right", 
+        f"Territorial Heatmap: Belgium attacking from {direction}", 
         fontsize=styling.typo["sizes"]["p"], 
         color=styling.colors["primary"], 
         ha="center", 
@@ -416,14 +421,13 @@ def plot_stats_comparison(ax, metrics_df, team1_name, team2_name, team1_color, t
     # Get team colors from styling
     color1 = styling.colors[team1_color]
     color2 = styling.colors[team2_color]
+    bel_color = color1 if team1_name == "Belgium" else color2
 
     # Define which stats to display and their labels
     stats_to_plot = [
         ('possession', 'Possession'),
         ('field_tilt', 'Field tilt'),
-        # ('total_shots', 'Total shots'),
-        # ('on_target_shots', 'On target shots'),
-        ('ppda', 'Passes allowed per defensive action'),
+        ('ppda', 'PPDA'),
         ('final_third_entries', 'Final third entries'),
         ('box_touches', 'Touches in opposition box'),
         ('progressive_passes', 'Progressive passes')
@@ -457,7 +461,7 @@ def plot_stats_comparison(ax, metrics_df, team1_name, team2_name, team1_color, t
         ax.scatter(1, y_pos, s=scatter_size, color=color2, zorder=1, marker='o')
         
         # Middle junction (where colors meet)
-        ax.scatter(norm_val1, y_pos, s=scatter_size, color=color1, zorder=3, marker='o')
+        ax.scatter(norm_val1, y_pos, s=scatter_size, color=bel_color, zorder=3, marker='o')
         
         # Set labels (decimal points, percentages, etc.)
         label1 = f"{val1:.0f}"
