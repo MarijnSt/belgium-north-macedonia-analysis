@@ -79,19 +79,20 @@ class MatchDataLoader:
             # Find the mapping.json file
             mapping_file = self.game_dir / "mapping.json"
             if not mapping_file.exists():
-                raise FileNotFoundError(f"Mapping data file not found at {mapping_file}")
+                logger.warning(f"Mapping data file not found at {mapping_file}. Returning empty dictionary.")
+                self.mapping_data = {}
+            else:
+                # Load the mapping data
+                with open(mapping_file, "r") as f:
+                    json_data = json.load(f)
 
-            # Load the mapping data
-            with open(mapping_file, "r") as f:
-                json_data = json.load(f)
+                if json_data is None:
+                    raise ValueError("No data found in the mapping.json file")
 
-            if json_data is None:
-                raise ValueError("No data found in the mapping.json file")
+                # Save data in class attributes as dictionary
+                self.mapping_data = json_data
 
-            # Save data in class attributes as dictionary
-            self.mapping_data = json_data
-
-            logger.info(f"✓ Loaded mapping data from {mapping_file}")
+                logger.info(f"✓ Loaded mapping data from {mapping_file}")
 
             return self.mapping_data
         
@@ -112,13 +113,15 @@ class MatchDataLoader:
             # Find the tracking.json file
             tracking_file = self.game_dir / "tracking.pkl"
             if not tracking_file.exists():
-                raise FileNotFoundError(f"Tracking data file not found at {tracking_file}")
+                logger.warning(f"Tracking data file not found at {tracking_file}. Returning empty DataFrame.")
+                self.tracking_data = pd.DataFrame()
+            else:
+                # Load the tracking data
+                with open(tracking_file, "rb") as f:
+                    self.tracking_data = pickle.load(f)
 
-            # Load the tracking data
-            with open(tracking_file, "rb") as f:
-                self.tracking_data = pickle.load(f)
-
-            logger.info(f"✓ Loaded {len(self.tracking_data)} tracking entries from {tracking_file}")
+                logger.info(f"✓ Loaded {len(self.tracking_data)} tracking entries from {tracking_file}")
+            
             return self.tracking_data
         
         except Exception as e:
